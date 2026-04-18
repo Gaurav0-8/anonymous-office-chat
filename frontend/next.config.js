@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   // Proxy all API and WebSocket calls to Go backend
   // Browser only ever talks to the Cloudflare domain (port 443)
   async rewrites() {
