@@ -34,7 +34,8 @@ export default function ChatPage() {
     const token = localStorage.getItem('token');
     // Dynamically use the current page's host — works on local, Cloudflare, any domain
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const fallbackUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || fallbackUrl;
     const ws = new WebSocket(`${wsUrl}?token=${token}`);
 
     ws.onopen = () => {
