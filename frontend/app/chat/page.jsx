@@ -92,11 +92,23 @@ export default function ChatPage() {
             <span className="user-name">Anonymous</span>
             <span className="user-role text-muted">{user.role}</span>
           </div>
-          <button className="btn btn-secondary logout-btn" onClick={handleLogout} title="Logout">
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </button>
+          <div className="sidebar-user-actions" style={{ display: 'flex', gap: '4px' }}>
+            <button 
+              className="btn btn-secondary install-shortcut-btn" 
+              onClick={() => {
+                const event = new Event('trigger-pwa-install');
+                window.dispatchEvent(event);
+              }}
+              title="Install App"
+            >
+              📥
+            </button>
+            <button className="btn btn-secondary logout-btn" onClick={handleLogout} title="Logout">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <ChatList

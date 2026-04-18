@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { chatsAPI, messagesAPI, imagesAPI } from '@/lib/api';
 import MessageInput from './MessageInput';
-import ImageMessage from './ImageMessage';
+import MediaMessage from './MediaMessage';
 import ImageModal from './ImageModal';
 import MessageReadersModal from './MessageReadersModal';
 
@@ -104,7 +104,7 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
             >
               <div className={`message-bubble ${isOwnMessage(msg) ? 'message-own' : 'message-other'}`}>
                 {msg.image_file_id && (
-                  <ImageMessage
+                  <MediaMessage
                     fileId={msg.image_file_id}
                     width={msg.image_width}
                     height={msg.image_height}

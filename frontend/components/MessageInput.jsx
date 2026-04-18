@@ -3,11 +3,13 @@
 import { useState, useRef } from 'react';
 import { imagesAPI } from '@/lib/api';
 import MediaPicker from './MediaPicker';
+import RichPicker from './RichPicker';
 
 export default function MessageInput({ onSend, onImageSend, disabled, chatId }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showMedia, setShowMedia] = useState(false);
+  const [showRich, setShowRich] = useState(false);
   const textareaRef = useRef(null);
 
   const handleSend = async () => {
@@ -49,7 +51,16 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
       <div className="message-input-bar">
         <button
           className="input-action-btn"
-          onClick={() => setShowMedia(!showMedia)}
+          onClick={() => { setShowRich(!showRich); setShowMedia(false); }}
+          disabled={disabled}
+          title="Emojis, GIFs & Stickers"
+        >
+          😊
+        </button>
+
+        <button
+          className="input-action-btn"
+          onClick={() => { setShowMedia(!showMedia); setShowRich(false); }}
           disabled={disabled}
           title="Attach media"
         >
@@ -82,6 +93,17 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
           )}
         </button>
       </div>
+
+      {showRich && (
+        <div className="rich-picker-popover">
+          <RichPicker 
+            onEmojiSelect={(emoji) => setText(prev => prev + emoji)}
+            onGifSelect={(url) => { onImageSend(url, ''); setShowRich(false); }}
+            onStickerSelect={(content) => { onSend(content); setShowRich(false); }}
+            onClose={() => setShowRich(false)}
+          />
+        </div>
+      )}
 
       {showMedia && (
         <MediaPicker onSelect={handleImageUpload} onClose={() => setShowMedia(false)} />
@@ -135,6 +157,19 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
         }
         .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .send-btn.active:hover { background: var(--accent-hover); transform: scale(1.05); }
+        .rich-picker-popover {
+          position: absolute;
+          bottom: 100%;
+          left: 16px;
+          margin-bottom: 8px;
+          z-index: 100;
+        }
+        @media (max-width: 480px) {
+          .rich-picker-popover {
+            left: 0;
+            width: 100%;
+          }
+        }
       `}</style>
     </div>
   );

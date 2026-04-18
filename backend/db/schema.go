@@ -94,6 +94,20 @@ func SeedMainChat() error {
 	return nil
 }
 
+// MigrateParticipants ensures every existing user is a participant in chat_id=1 (main group chat).
+// This is idempotent — safe to run on every startup.
+func MigrateParticipants() error {
+	_, err := DB.Exec(`
+		INSERT OR IGNORE INTO chat_participants (chat_id, user_id)
+		SELECT 1, user_id FROM users
+	`)
+	if err != nil {
+		return err
+	}
+	log.Println("[DB] Participant migration complete")
+	return nil
+}
+
 // DeleteOldMessages removes messages older than 30 minutes and their associated image files
 func DeleteOldMessages() error {
 	cutoff := time.Now().Add(-30 * time.Minute)

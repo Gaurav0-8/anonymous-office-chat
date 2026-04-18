@@ -27,6 +27,7 @@ EXPOSE 3000
 # Copy necessary files from the builder
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
 # Run the standalone server
 CMD ["bun", "server.js"]

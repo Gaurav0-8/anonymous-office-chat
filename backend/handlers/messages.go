@@ -34,6 +34,16 @@ func createMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "message_text is required")
 	}
 
+	// Check if user is a participant in this chat
+	var participates int
+	db.DB.QueryRow(
+		"SELECT COUNT(*) FROM chat_participants WHERE chat_id = ? AND user_id = ?",
+		req.ChatID, userID,
+	).Scan(&participates)
+	if participates == 0 {
+		return fiber.NewError(fiber.StatusForbidden, "Not a participant in this chat")
+	}
+
 	// Check if user is muted in this chat
 	var mutedUntil *time.Time
 	var isBanned int

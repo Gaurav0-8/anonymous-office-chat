@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { chatsAPI, messagesAPI, imagesAPI } from '@/lib/api';
 import MessageInput from './MessageInput';
-import ImageMessage from './ImageMessage';
+import MediaMessage from './MediaMessage';
 import ImageModal from './ImageModal';
 import MessageReadersModal from './MessageReadersModal';
 import AdminControls from './AdminControls';
@@ -153,7 +153,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady }) {
                   <span className="message-sender">{msg.sender_name}</span>
                 )}
                 {msg.image_file_id ? (
-                  <ImageMessage
+                  <MediaMessage
                     fileId={msg.image_file_id}
                     width={msg.image_width}
                     height={msg.image_height}

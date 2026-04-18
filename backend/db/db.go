@@ -46,6 +46,9 @@ func InitDB() error {
 	if err = SeedMainChat(); err != nil {
 		return fmt.Errorf("failed to seed main chat: %w", err)
 	}
+	if err = MigrateParticipants(); err != nil {
+		return fmt.Errorf("failed to migrate participants: %w", err)
+	}
 
 	log.Println("[DB] Database initialized successfully")
 	return nil

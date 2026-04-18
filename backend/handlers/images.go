@@ -106,14 +106,20 @@ func sendImageMessage(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "chat_id and file_id are required")
 	}
 
-	// Verify image exists
-	var filePath string
+	// Verify image exists (if not a remote URL)
 	var imgWidth, imgHeight *int
-	err := db.DB.QueryRow(
-		"SELECT file_path, width, height FROM image_files WHERE file_id = ?", req.FileID,
-	).Scan(&filePath, &imgWidth, &imgHeight)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Image not found")
+	isRemote := strings.HasPrefix(req.FileID, "http://") || strings.HasPrefix(req.FileID, "https://")
+
+	if !isRemote {
+		var filePath string
+		err := db.DB.QueryRow(
+			"SELECT file_path, width, height FROM image_files WHERE file_id = ?", req.FileID,
+		).Scan(&filePath, &imgWidth, &imgHeight)
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "Image not found")
+		}
+	} else {
+		// For remote URLs, we don't know dimensions upfront
 	}
 
 	// Verify participation
