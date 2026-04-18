@@ -29,6 +29,7 @@ type WAUser struct {
 func (u *WAUser) WebAuthnID() []byte                         { return []byte(fmt.Sprintf("%d", u.UserID)) }
 func (u *WAUser) WebAuthnName() string                      { return u.Username }
 func (u *WAUser) WebAuthnDisplayName() string               { return u.DisplayName }
+func (u *WAUser) WebAuthnIcon() string                      { return "" }
 func (u *WAUser) WebAuthnCredentials() []webauthn.Credential { return u.Credentials }
 
 // ── In-memory session store (challenges live for 5 minutes) ──────────────────
