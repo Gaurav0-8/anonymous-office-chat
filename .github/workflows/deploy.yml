@@ -27,7 +27,7 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/chatapp-backend:latest
+          tags: ghcr.io/gaurav0-8/chatapp-backend:latest
 
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
@@ -38,4 +38,4 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_WS_URL=${{ secrets.NEXT_PUBLIC_WS_URL }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          tags: ghcr.io/${{ github.repository_owner }}/chatapp-frontend:latest
+          tags: ghcr.io/gaurav0-8/chatapp-frontend:latest
