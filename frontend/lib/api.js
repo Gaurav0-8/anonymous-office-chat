@@ -40,11 +40,9 @@ export const authAPI = {
   checkUsername: (username) => api.get(`/auth/check-username/${username}`),
   getDisplayNames: () => api.get('/auth/display-names'),
   
-  // WebAuthn
-  webAuthnRegisterBegin: (data) => api.post('/auth/webauthn/register/begin', data),
-  webAuthnRegisterFinish: (data) => api.post('/auth/webauthn/register/finish', data),
-  webAuthnLoginBegin: (data) => api.post('/auth/webauthn/login/begin', data),
-  webAuthnLoginFinish: (data) => api.post('/auth/webauthn/login/finish', data),
+  // Google OAuth
+  googleLogin: (data) => api.post('/auth/google', data),
+  setName: (data) => api.post('/auth/set-name', data),
 
   // Admin Setup
   adminSetupBegin: (data, token) => api.post('/auth/admin-setup/begin', data, {

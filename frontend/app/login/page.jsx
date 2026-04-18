@@ -2,35 +2,31 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin } from '@react-oauth/google';
 import { authAPI } from '@/lib/api';
-import { startAuthentication } from '@/lib/webauthn';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!username.trim()) return setError('Username is required');
-
+  const handleGoogleSuccess = async (credentialResponse) => {
     try {
       setLoading(true);
       setError(null);
       
-      const { data: beginData } = await authAPI.webAuthnLoginBegin({ username: username.trim() });
-      
-      const asseResp = await startAuthentication(beginData.options);
-      
-      const { data: finishData } = await authAPI.webAuthnLoginFinish({
-        session_id: beginData.session_id,
-        credential: asseResp,
+      const { data } = await authAPI.googleLogin({ 
+        id_token: credentialResponse.credential 
       });
 
-      localStorage.setItem('token', finishData.access_token);
-      localStorage.setItem('user', JSON.stringify(finishData.user));
-      router.replace('/chat');
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      if (data.is_new_user) {
+        router.replace('/choose-name');
+      } else {
+        router.replace('/chat');
+      }
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.detail || err.message || 'Login failed');
@@ -43,34 +39,32 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card card fade-in">
         <div className="auth-logo">💬</div>
-        <h1 className="auth-title">Welcome Back</h1>
-        <p className="auth-subtitle text-muted">Sign in to continue chatting</p>
+        <h1 className="auth-title">Welcome</h1>
+        <p className="auth-subtitle text-muted">Sign in with your Google account to start chatting anonymously</p>
 
         {error && <div className="auth-error">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="login-username">Username</label>
-            <input
-              id="login-username"
-              className="input"
-              type="text"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-            />
-          </div>
+        <div className="auth-google-container">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Google Sign-In failed')}
+            useOneTap
+            width="340"
+            theme="filled_black"
+          />
+        </div>
 
-          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
-            {loading ? <><div className="spinner" style={{width:16,height:16}} /> Verifying Face ID...</> : 'Sign In with Passkey'}
-          </button>
-        </form>
+        {loading && (
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <div className="spinner" style={{width:16,height:16}} />
+            <span style={{ fontSize: '0.875rem' }}>Authenticating...</span>
+          </div>
+        )}
 
         <p className="auth-switch text-muted">
           Don't have an account?{' '}
-          <button onClick={() => router.push('/register')} className="text-accent auth-link">
-            Register
+          <button onClick={() => router.push('/welcome')} className="text-accent auth-link">
+            Learn More
           </button>
         </p>
       </div>
@@ -93,7 +87,7 @@ export default function LoginPage() {
           color: var(--danger); border-radius: 8px; padding: 10px 14px;
           font-size: 0.875rem; margin-bottom: 16px;
         }
-        .auth-form { display: flex; flex-direction: column; gap: 16px; }
+        .auth-google-container { display: flex; justify-content: center; margin-bottom: 16px; }
         .auth-switch { text-align: center; font-size: 0.875rem; margin-top: 24px; display: block; }
         .auth-link { background: none; border: none; cursor: pointer; font-weight: 600; font-size: 0.875rem; }
       `}</style>

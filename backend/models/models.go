@@ -2,11 +2,12 @@ package models
 
 import "time"
 
-// User represents a registered user
+// User represents a registered user via Google OAuth
 type User struct {
 	UserID       int       `json:"user_id"`
+	GoogleID     string    `json:"-"`
+	Email        string    `json:"email"`
 	Username     string    `json:"username"`
-	PasswordHash string    `json:"-"`
 	DisplayName  string    `json:"display_name"`
 	Role         string    `json:"role"`
 	LastSeen     time.Time `json:"last_seen"`

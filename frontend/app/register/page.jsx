@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
-import { startRegistration } from '@simplewebauthn/browser';
+import { startRegistration } from '@/lib/webauthn';
 
 export default function RegisterPage() {
   const router = useRouter();

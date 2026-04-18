@@ -12,7 +12,6 @@ import (
 
 	"github.com/gaurav/chat-app/db"
 	"github.com/gaurav/chat-app/handlers"
-	"github.com/gaurav/chat-app/wauthn"
 	"github.com/gaurav/chat-app/ws"
 )
 
@@ -27,12 +26,6 @@ func main() {
 		log.Fatalf("[Main] Failed to initialize database: %v", err)
 	}
 	defer db.CloseDB()
-
-	// Initialize WebAuthn
-	if err := wauthn.Init(); err != nil {
-		log.Fatalf("[Main] Failed to initialize WebAuthn: %v", err)
-	}
-	log.Println("[Main] WebAuthn initialized")
 
 	// Ensure uploads directory exists
 	uploadDir := os.Getenv("UPLOAD_DIR")
@@ -78,7 +71,7 @@ func main() {
 
 	// Register all route groups
 	handlers.SetupAuthRoutes(app)
-	handlers.SetupWebAuthnRoutes(app)
+	handlers.SetupGoogleAuthRoutes(app)
 	handlers.SetupChatRoutes(app)
 	handlers.SetupMessageRoutes(app)
 	handlers.SetupImageRoutes(app)

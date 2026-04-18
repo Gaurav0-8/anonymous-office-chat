@@ -11,8 +11,9 @@ func CreateSchema() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS users (
 		user_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+		google_id     TEXT NOT NULL UNIQUE,
+		email         TEXT NOT NULL UNIQUE,
 		username      TEXT NOT NULL UNIQUE,
-		password_hash TEXT NOT NULL,
 		display_name  TEXT NOT NULL UNIQUE,
 		role          TEXT NOT NULL DEFAULT 'user',
 		last_seen     DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -70,14 +71,6 @@ func CreateSchema() error {
 		media_url   TEXT NOT NULL,
 		media_type  TEXT NOT NULL,
 		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE TABLE IF NOT EXISTS webauthn_credentials (
-		id              INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id         INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-		credential_id   TEXT NOT NULL UNIQUE,
-		credential_data TEXT NOT NULL,
-		created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 	_, err := DB.Exec(schema)
