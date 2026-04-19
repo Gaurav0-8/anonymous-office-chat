@@ -5,18 +5,35 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Interceptor for handling auth
+// Request interceptor to attach bearer token from localStorage
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor for auth failures
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') window.location.href = '/login';
+      // Clear local state and redirect if unauthorized
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
 export const authAPI = {
+  login: (credentials) => api.post('/auth/login', credentials),
+  register: (data) => api.post('/auth/register', data),
+  googleLogin: (data) => api.post('/auth/google', data),
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
 };
@@ -25,7 +42,7 @@ export const chatsAPI = {
   getMainChat: () => api.get('/chats/main'),
   getChatMessages: (chatId) => api.get(`/chats/${chatId}/messages`),
   getUserChats: () => api.get('/chats/my-chats'),
-  createPrivateChat: (targetUserId) => api.post('/private', { target_user_id: targetUserId }),
+  createPrivateChat: (targetUserId) => api.post('/chats/private', { target_user_id: targetUserId }),
 };
 
 export const messagesAPI = {
@@ -40,10 +57,10 @@ export const imagesAPI = {
   upload: (formData) => api.post('/images/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  sendImageMessage: (chatId, fileId, text) => api.post('/messages', {
+  sendImageMessage: (chatId, fileId, text) => api.post('/images/message', {
     chat_id: chatId,
     message_text: text,
-    image_file_id: fileId,
+    file_id: fileId,
   }),
 };
 
