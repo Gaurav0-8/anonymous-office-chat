@@ -5,64 +5,56 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor to attach bearer token from localStorage
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Response interceptor for auth failures
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         localStorage.removeItem('token');
-        localStorage.removeItem('user');
         window.location.href = '/login';
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
 
 export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (data) => api.post('/auth/register', data),
-  googleLogin: (data) => api.post('/auth/google', data),
+  login: (c) => api.post('/auth/login', c),
+  register: (d) => api.post('/auth/register', d),
+  googleLogin: (d) => api.post('/auth/google', d),
   getMe: () => api.get('/auth/me'),
-  logout: () => api.post('/auth/logout'),
 };
 
 export const chatsAPI = {
   getMainChat: () => api.get('/chats/main'),
-  getChatMessages: (chatId) => api.get(`/chats/${chatId}/messages`),
-  // Support both names for compatibility across the codebase
+  getChatMessages: (id) => api.get(`/chats/${id}/messages`),
   getUserChats: () => api.get('/chats/my-chats'),
-  getMyChats: () => api.get('/chats/my-chats'), 
-  createPrivateChat: (targetUserId) => api.post('/chats/private', { target_user_id: targetUserId }),
+  getMyChats: () => api.get('/chats/my-chats'),
+  createPrivateChat: (id) => api.post('/chats/private', { target_user_id: id }),
 };
 
 export const messagesAPI = {
-  send: (chatId, text, parentMessageId = null) => 
-    api.post('/messages', { chat_id: chatId, message_text: text, parent_message_id: parentMessageId }),
-  react: (messageId, emoji) => api.post(`/messages/${messageId}/react`, { emoji }),
-  getReaders: (messageId) => api.get(`/messages/${messageId}/readers`),
-  markRead: (messageId) => api.post(`/messages/${messageId}/read`),
+  send: (id, t, p = null) => api.post('/messages', { chat_id: id, message_text: t, parent_message_id: p }),
+  react: (id, e) => api.post(`/messages/${id}/react`, { emoji: e }),
+  getReaders: (id) => api.get(`/messages/${id}/readers`),
+  markRead: (id) => api.post(`/messages/${id}/read`),
 };
 
 export const imagesAPI = {
-  upload: (formData) => api.post('/images/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-  sendImageMessage: (chatId, fileId, text) => api.post('/images/message', {
-    chat_id: chatId,
+  upload: (fd) => api.post('/images/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  sendImageMessage: (id, fid, text, viewOnce = false) => api.post('/images/message', {
+    chat_id: id,
     message_text: text,
-    file_id: fileId,
+    file_id: fid,
+    view_once: viewOnce
   }),
+  confirmView: (msgId) => api.post(`/images/${msgId}/view`),
 };
 
 export default api;

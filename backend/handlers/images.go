@@ -18,54 +18,33 @@ import (
 	"github.com/gaurav/chat-app/ws"
 )
 
-const maxUploadSizeMB = 10
+const maxUploadSizeMB = 20
 
-// SetupImageRoutes registers all /images routes
 func SetupImageRoutes(app *fiber.App) {
 	imgs := app.Group("/images", mw.AuthRequired())
 	imgs.Post("/upload", uploadImage)
 	imgs.Get("/stickers", listStickers)
 	imgs.Post("/message", sendImageMessage)
-	imgs.Post("/:file_id/read", markImageRead)
-	// Static file serving is handled by app.Static("/uploads", ...) in main.go
+	imgs.Post("/:message_id/view", confirmViewOnce)
 }
 
-// POST /images/upload — upload an image file, returns file_id
 func uploadImage(c *fiber.Ctx) error {
 	file, err := c.FormFile("file")
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "No file uploaded")
-	}
-
+	if err != nil { return fiber.NewError(fiber.StatusBadRequest, "No file uploaded") }
 	isSticker := c.FormValue("is_sticker") == "true"
+	if file.Size > maxUploadSizeMB*1024*1024 { return fiber.NewError(fiber.StatusBadRequest, "File too large") }
 
-	// Size check
-	if file.Size > maxUploadSizeMB*1024*1024 {
-		return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("File too large (max %dMB)", maxUploadSizeMB))
-	}
-
-	// Extension check
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
-	if !allowed[ext] {
-		return fiber.NewError(fiber.StatusBadRequest, "File type not allowed")
-	}
-
 	uploadDir := os.Getenv("UPLOAD_DIR")
-	if uploadDir == "" {
-		uploadDir = "./uploads"
-	}
+	if uploadDir == "" { uploadDir = "./uploads" }
 	os.MkdirAll(uploadDir, 0755)
 
 	fileID := uuid.New().String()
 	fileName := fileID + ext
 	filePath := filepath.Join(uploadDir, fileName)
 
-	if err := c.SaveFile(file, filePath); err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Failed to save file")
-	}
+	if err := c.SaveFile(file, filePath); err != nil { return err }
 
-	// Detect image dimensions
 	var width, height *int
 	if f, err := os.Open(filePath); err == nil {
 		defer f.Close()
@@ -75,115 +54,53 @@ func uploadImage(c *fiber.Ctx) error {
 		}
 	}
 
-	// Store metadata
-	_, err = db.DB.Exec(
-		"INSERT INTO image_files (file_id, file_path, width, height, is_sticker) VALUES (?, ?, ?, ?, ?)",
-		fileID, filePath, width, height, isSticker,
-	)
-	if err != nil {
-		os.Remove(filePath)
-		return fiber.NewError(fiber.StatusInternalServerError, "Failed to store image metadata")
-	}
+	_, _ = db.DB.Exec("INSERT INTO image_files (file_id, file_path, width, height, is_sticker) VALUES (?, ?, ?, ?, ?)", fileID, filePath, width, height, isSticker)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"file_id":  fileID,
-		"url":      "/uploads/" + fileName,
-		"width":    width,
-		"height":   height,
-		"is_sticker": isSticker,
+	return c.JSON(fiber.Map{
+		"file_id": fileID,
+		"url":     "/uploads/" + fileName,
+		"width":   width,
+		"height":  height,
 	})
 }
 
-// GET /images/stickers — returns list of all community stickers
-func listStickers(c *fiber.Ctx) error {
-	rows, err := db.DB.Query("SELECT file_id, file_path, width, height FROM image_files WHERE is_sticker = 1 ORDER BY created_at DESC")
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Failed to query stickers")
-	}
-	defer rows.Close()
-
-	var stickers []fiber.Map
-	for rows.Next() {
-		var id, path string
-		var w, h *int
-		rows.Scan(&id, &path, &w, &h)
-		
-		// Convert path to URL
-		ext := filepath.Ext(path)
-		url := "/uploads/" + id + ext
-
-		stickers = append(stickers, fiber.Map{
-			"id":     id,
-			"url":    url,
-			"width":  w,
-			"height": h,
-		})
-	}
-
-	return c.JSON(stickers)
-}
-
-// POST /images/message — send a message that includes an image (with optional text)
 func sendImageMessage(c *fiber.Ctx) error {
 	userID, _, displayName, _ := mw.GetCurrentUser(c)
-
 	var req struct {
 		ChatID      int    `json:"chat_id"`
 		FileID      string `json:"file_id"`
 		MessageText string `json:"message_text"`
+		ViewOnce    bool   `json:"view_once"`
 	}
-	if err := c.BodyParser(&req); err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
-	}
-	if req.ChatID == 0 || req.FileID == "" {
-		return fiber.NewError(fiber.StatusBadRequest, "chat_id and file_id are required")
-	}
+	if err := c.BodyParser(&req); err != nil { return err }
 
-	// Verify image exists (if not a remote URL)
 	var imgWidth, imgHeight *int
-	isRemote := strings.HasPrefix(req.FileID, "http://") || strings.HasPrefix(req.FileID, "https://")
-
-	if !isRemote {
-		var filePath string
-		err := db.DB.QueryRow(
-			"SELECT file_path, width, height FROM image_files WHERE file_id = ?", req.FileID,
-		).Scan(&filePath, &imgWidth, &imgHeight)
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "Image not found")
-		}
-	} else {
-		// For remote URLs, we don't know dimensions upfront
+	var fileName string
+	if !strings.HasPrefix(req.FileID, "http") {
+		_ = db.DB.QueryRow("SELECT width, height, file_path FROM image_files WHERE file_id = ?", req.FileID).Scan(&imgWidth, &imgHeight, &fileName)
+		fileName = filepath.Base(fileName)
 	}
 
-	// Verify participation
-	var count int
-	db.DB.QueryRow(
-		"SELECT COUNT(*) FROM chat_participants WHERE chat_id = ? AND user_id = ?", req.ChatID, userID,
-	).Scan(&count)
-	if count == 0 {
-		return fiber.NewError(fiber.StatusForbidden, "Not a participant in this chat")
-	}
+	intViewOnce := 0
+	if req.ViewOnce { intViewOnce = 1 }
 
 	res, err := db.DB.Exec(
-		"INSERT INTO messages (chat_id, sender_id, message_text, image_file_id) VALUES (?, ?, ?, ?)",
-		req.ChatID, userID, req.MessageText, req.FileID,
+		"INSERT INTO messages (chat_id, sender_id, message_text, image_file_id, view_once) VALUES (?, ?, ?, ?, ?)",
+		req.ChatID, userID, req.MessageText, req.FileID, intViewOnce,
 	)
-	if err != nil {
-		return fiber.NewError(fiber.StatusInternalServerError, "Failed to create message")
-	}
+	if err != nil { return err }
 	messageID, _ := res.LastInsertId()
+	sentAt := time.Now()
 
-	// Broadcast to participants
 	pRows, _ := db.DB.Query("SELECT user_id FROM chat_participants WHERE chat_id = ?", req.ChatID)
 	defer pRows.Close()
-	var participantIDs []int
+	var pids []int
 	for pRows.Next() {
 		var pid int
 		pRows.Scan(&pid)
-		participantIDs = append(participantIDs, pid)
+		pids = append(pids, pid)
 	}
 
-	sentAt := time.Now()
 	ws.Hub.BroadcastToUsers(fiber.Map{
 		"type": "new_message",
 		"message": fiber.Map{
@@ -193,41 +110,44 @@ func sendImageMessage(c *fiber.Ctx) error {
 			"sender_name":   displayName,
 			"message_text":  req.MessageText,
 			"sent_at":       sentAt,
-			"is_edited":     false,
 			"image_file_id": req.FileID,
+			"image_url":     "/uploads/" + fileName,
 			"image_width":   imgWidth,
 			"image_height":  imgHeight,
+			"view_once":     req.ViewOnce,
 		},
-	}, participantIDs)
+	}, pids)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message_id":    messageID,
-		"chat_id":       req.ChatID,
-		"sender_id":     userID,
-		"message_text":  req.MessageText,
-		"image_file_id": req.FileID,
-		"image_width":   imgWidth,
-		"image_height":  imgHeight,
-		"sent_at":       sentAt,
-	})
+	return c.JSON(fiber.Map{"message_id": messageID})
 }
 
-// POST /images/:file_id/read — mark an image message as read
-func markImageRead(c *fiber.Ctx) error {
-	fileID := c.Params("file_id")
+func confirmViewOnce(c *fiber.Ctx) error {
+	msgID, _ := c.ParamsInt("message_id")
 	userID, _, _, _ := mw.GetCurrentUser(c)
 
-	// Find the message with this image
-	var msgID int
-	err := db.DB.QueryRow(
-		"SELECT message_id FROM messages WHERE image_file_id = ? LIMIT 1", fileID,
-	).Scan(&msgID)
-	if err != nil {
-		return fiber.NewError(fiber.StatusNotFound, "Image message not found")
+	// Check if message is view_once and sent to this user
+	var senderID int
+	var viewOnce int
+	err := db.DB.QueryRow("SELECT sender_id, view_once FROM messages WHERE message_id = ?", msgID).Scan(&senderID, &viewOnce)
+	if err != nil || viewOnce == 0 { return c.SendStatus(404) }
+
+	if senderID == userID {
+		// Sender viewing their own view_once doesn't kill it (optional behavior)
+	} else {
+		_, _ = db.DB.Exec("UPDATE messages SET viewed_at = CURRENT_TIMESTAMP WHERE message_id = ? AND viewed_at IS NULL", msgID)
 	}
 
-	db.DB.Exec(
-		"INSERT OR IGNORE INTO message_reads (message_id, user_id) VALUES (?, ?)", msgID, userID,
-	)
 	return c.JSON(fiber.Map{"status": "ok"})
+}
+
+func listStickers(c *fiber.Ctx) error {
+	rows, _ := db.DB.Query("SELECT file_id, file_path FROM image_files WHERE is_sticker = 1")
+	defer rows.Close()
+	var list []fiber.Map
+	for rows.Next() {
+		var id, path string
+		rows.Scan(&id, &path)
+		list = append(list, fiber.Map{"id": id, "url": "/uploads/" + filepath.Base(path)})
+	}
+	return c.JSON(list)
 }

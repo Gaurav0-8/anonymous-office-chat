@@ -9,6 +9,7 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
   const [showPicker, setShowPicker] = useState(false);
   const [pastedFile, setPastedFile] = useState(null);
   const [pastedPreview, setPastedPreview] = useState(null);
+  const [viewOnce, setViewOnce] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef(null);
   const pickerRef = useRef(null);
@@ -17,7 +18,6 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
     if (focusTrigger > 0) inputRef.current?.focus();
   }, [focusTrigger]);
 
-  // Click outside to close picker
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (pickerRef.current && !pickerRef.current.contains(event.target) && !event.target.closest('.emoji-trigger')) {
@@ -38,9 +38,10 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
             const formData = new FormData();
             formData.append('file', pastedFile);
             const res = await imagesAPI.upload(formData);
-            await onImageSend(res.data.file_id, text);
+            await onImageSend(res.data.file_id, text, viewOnce);
             setPastedFile(null);
             setPastedPreview(null);
+            setViewOnce(false);
             setText('');
         } catch (err) {
             console.error('Upload failed:', err);
@@ -64,36 +65,30 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
             const file = items[i].getAsFile();
             setPastedFile(file);
             const reader = new FileReader();
-            reader.onload = (event) => {
-                setPastedPreview(event.target.result);
-            };
+            reader.onload = (event) => setPastedPreview(event.target.result);
             reader.readAsDataURL(file);
             e.preventDefault();
         }
     }
   };
 
-  const handleEmojiSelect = (emojiNative) => {
-    setText(prev => prev + emojiNative);
-    // Keep focus on input after selecting emoji
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-
-  const handleGifSelect = (gifUrl) => {
-    onSend(gifUrl);
-    setShowPicker(false);
-  };
-
   return (
     <div className="message-input-area">
       {pastedPreview && (
-          <div className="pasted-media-preview-bar">
+          <div className="pasted-media-preview-bar fade-in">
               <div className="preview-container">
                   <img src={pastedPreview} alt="Paste preview" />
-                  <button className="remove-pasted" onClick={() => { setPastedFile(null); setPastedPreview(null); }}>✕</button>
+                  <button className="remove-pasted" onClick={() => { setPastedFile(null); setPastedPreview(null); setViewOnce(false); }}>✕</button>
               </div>
-              <div className="preview-metadata">
-                  <span>Image ready to send. Type a caption below.</span>
+              <div className="preview-controls">
+                  <button 
+                    type="button"
+                    className={`toggle-view-once ${viewOnce ? 'active' : ''}`}
+                    onClick={() => setViewOnce(!viewOnce)}
+                  >
+                    {viewOnce ? '👁️ View Once' : '🖼️ Keep in Chat'}
+                  </button>
+                  <span className="hint">Choosing Vanish Mode?</span>
               </div>
           </div>
       )}
@@ -103,8 +98,8 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
           {showPicker && (
             <div className="picker-popover">
                 <RichPicker 
-                    onEmojiSelect={handleEmojiSelect} 
-                    onGifSelect={handleGifSelect}
+                    onEmojiSelect={(e) => { setText(p => p + e); inputRef.current?.focus(); }} 
+                    onGifSelect={(url) => { onSend(url); setShowPicker(false); }}
                     onClose={() => setShowPicker(false)}
                 />
             </div>
@@ -118,7 +113,7 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
           value={text}
           onChange={(e) => setText(e.target.value)}
           onPaste={handlePaste}
-          placeholder={pastedFile ? "Add a caption..." : "Type a message or paste an image..."}
+          placeholder={pastedFile ? "Add a caption..." : "Message..."}
           disabled={disabled || isUploading}
           className="main-input"
         />
@@ -129,26 +124,24 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
       </form>
 
       <style jsx>{`
-        .message-input-area { padding: 12px 20px; background: #1a1926; border-top: 1px solid #2a293d; position: relative; }
-        .pasted-media-preview-bar { background: #232231; border-radius: 12px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; border: 1px solid #7c6af7; box-shadow: 0 4px 15px rgba(124, 106, 247, 0.2); }
-        .preview-container { position: relative; width: 60px; height: 60px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+        .message-input-area { padding: 12px 20px; background: #050510; border-top: 1px solid rgba(255,255,255,0.05); }
+        .pasted-media-preview-bar { background: #1c1c28; border-radius: 18px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; border: 1px solid #7c6af7; box-shadow: 0 8px 30px rgba(124, 106, 247, 0.2); }
+        .preview-container { position: relative; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.1); }
         .preview-container img { width: 100%; height: 100%; object-fit: cover; }
-        .remove-pasted { position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.7); border: none; color: white; width: 20px; height: 20px; font-size: 0.6rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .preview-metadata { font-size: 0.8rem; color: #8888aa; }
+        .remove-pasted { position: absolute; top: -2px; right: -2px; background: #ff4757; border: none; color: white; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
         
-        .input-container { display: flex; align-items: center; gap: 10px; background: #111019; border-radius: 12px; padding: 6px 12px; border: 1px solid #2a293d; transition: border-color 0.2s; }
-        .input-container:focus-within { border-color: #7c6af7; }
+        .preview-controls { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .toggle-view-once { background: #262635; border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; align-self: flex-start; }
+        .toggle-view-once.active { background: #7c6af7; color: white; border-color: #7c6af7; box-shadow: 0 4px 12px rgba(124, 106, 247, 0.3); }
+        .hint { font-size: 0.7rem; color: #555; margin-left: 8px; }
+
+        .input-container { display: flex; align-items: center; gap: 10px; background: #1c1c28; border-radius: 26px; padding: 6px 14px; border: 1px solid rgba(255,255,255,0.05); }
         .main-input { flex: 1; background: none; border: none; color: white; padding: 10px 0; outline: none; font-size: 0.95rem; }
-        .action-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 4px; opacity: 0.7; transition: opacity 0.2s; }
-        .action-btn:hover { opacity: 1; }
-        .send-btn { background: #7c6af7; color: white; border: none; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .send-btn:disabled { background: #2a293d; color: #55556a; cursor: not-allowed; }
-        .send-btn:not(:disabled):hover { background: #8b5cf6; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(124, 106, 247, 0.3); }
-        .picker-wrapper { position: relative; }
-        .picker-popover { position: absolute; bottom: 50px; left: 0; z-index: 2000; animation: slideUp 0.15s ease-out; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .spinner-mini { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top: 2px solid white; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .action-btn { background: none; border: none; font-size: 1.3rem; cursor: pointer; opacity: 0.7; }
+        .send-btn { background: #7c6af7; color: white; border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; transition: all 0.2s; }
+        .send-btn:disabled { background: #262635; color: #555; cursor: not-allowed; }
+        .picker-popover { position: absolute; bottom: 65px; left: 20px; z-index: 2000; animation: bounceUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes bounceUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

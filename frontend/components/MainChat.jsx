@@ -45,7 +45,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
 
   useEffect(() => {
     loadData();
-    // Load all users for forwarding (limited to group participants for now)
     chatsAPI.getMainChat().then(res => {
         setUserList(res.data?.participants?.filter(p => p.user_id !== currentUser.user_id) || []);
     });
@@ -55,7 +54,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Global click to close menus
   useEffect(() => {
     const handleClick = (e) => {
         if (!e.target.closest('.bubble-wrapper') && !e.target.closest('.insta-menu')) {
@@ -113,15 +111,14 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     } catch (err) { console.error('Send failed:', err); }
   };
 
-  const handleImageSend = async (fileId, text) => {
+  const handleImageSend = async (fileId, text, viewOnce = false) => {
      try {
-       await imagesAPI.sendImageMessage(chatId, fileId, text);
+       await imagesAPI.sendImageMessage(chatId, fileId, text, viewOnce);
        setReplyTo(null);
      } catch (err) { console.error('Image send failed:', err); }
   };
 
   const handleReact = async (msgId, emoji) => {
-    // Optimistic Update for responsiveness
     setMessages(prev => prev.map(m => {
         if (m.message_id !== msgId) return m;
         const exists = m.reactions?.find(r => r.emoji === emoji);
@@ -135,7 +132,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         }
         return { ...m, reactions: updated };
     }));
-
     try {
         await messagesAPI.react(msgId, emoji);
         setReactionPickerMsgId(null);
@@ -149,26 +145,13 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         const res = await chatsAPI.createPrivateChat(targetUser.user_id);
         const targetChatId = res.data.chat_id;
         if (forwardMsg.image_file_id) {
-            await imagesAPI.sendImageMessage(targetChatId, forwardMsg.image_file_id, forwardMsg.message_text);
+            await imagesAPI.sendImageMessage(targetChatId, forwardMsg.image_file_id, forwardMsg.message_text, forwardMsg.view_once);
         } else {
             await messagesAPI.send(targetChatId, forwardMsg.message_text);
         }
         setForwardMsg(null);
         alert(`Forwarded to ${targetUser.display_name}`);
     } catch (err) { console.error('Forward failed:', err); }
-  };
-
-  const fetchReaders = async (msgId) => {
-    if (messageReaders[msgId]) return;
-    try {
-      const res = await messagesAPI.getReaders(msgId);
-      setMessageReaders(prev => ({ ...prev, [msgId]: res.data }));
-    } catch (e) { /* ignore */ }
-  };
-
-  const handleLongPress = (msgId) => {
-    setContextMsgId(msgId);
-    fetchReaders(msgId);
   };
 
   const isOwnMessage = (msg) => msg.sender_id === currentUser.user_id;
@@ -196,10 +179,10 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
             >              
               <div 
                 className="bubble-wrapper"
-                onContextMenu={(e) => { e.preventDefault(); handleLongPress(msg.message_id); }}
-                onMouseDown={() => { longPressTimer.current = setTimeout(() => handleLongPress(msg.message_id), 500); }}
+                onContextMenu={(e) => { e.preventDefault(); setContextMsgId(msg.message_id); }}
+                onMouseDown={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 500); }}
                 onMouseUp={() => clearTimeout(longPressTimer.current)}
-                onTouchStart={() => { longPressTimer.current = setTimeout(() => handleLongPress(msg.message_id), 500); }}
+                onTouchStart={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 500); }}
                 onTouchEnd={() => clearTimeout(longPressTimer.current)}
               >
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
@@ -218,8 +201,19 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                   
                   {msg.image_file_id ? (
                      <div className="media-attachment-container">
-                        <MediaMessage fileId={msg.image_file_id} onOpen={(url) => setSelectedImage(url)} />
-                        {msg.message_text && <p className="text with-image">{msg.message_text}</p>}
+                        <MediaMessage 
+                            fileId={msg.image_url || msg.image_file_id} 
+                            width={msg.image_width} 
+                            height={msg.image_height} 
+                            onOpen={(url) => setSelectedImage(url)} 
+                            viewOnce={msg.view_once}
+                            viewedAt={msg.viewed_at}
+                            messageId={msg.message_id}
+                            isOwn={isOwnMessage(msg)}
+                        />
+                        {(!msg.view_once || !msg.viewed_at) && msg.message_text && (
+                            <p className="text with-image">{msg.message_text}</p>
+                        )}
                      </div>
                   ) : (
                     <p className="text">{msg.message_text}</p>
@@ -232,7 +226,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                   </div>
 
                   {msg.reactions?.length > 0 && (
-                    <div className="reactions-pill-container" onClick={() => handleLongPress(msg.message_id)}>
+                    <div className="reactions-pill-container" onClick={() => setContextMsgId(msg.message_id)}>
                       {msg.reactions.map(r => (
                         <button key={r.emoji} className={`pill ${r.me ? 'me' : ''}`} onClick={(e) => { e.stopPropagation(); handleReact(msg.message_id, r.emoji); }}>
                           {r.emoji} {r.count}
@@ -258,9 +252,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                             <button onClick={() => { setReplyTo(msg); setContextMsgId(null); setFocusTrigger(f => f + 1); }}>↩️ Reply</button>
                             <button onClick={() => { setForwardMsg(msg); setContextMsgId(null); }}>➡️ Forward</button>
                             <button onClick={() => { navigator.clipboard.writeText(msg.message_text); setContextMsgId(null); }}>📋 Copy</button>
-                            <div className="seen-list">
-                                👁️ {messageReaders[msg.message_id]?.length > 0 ? `Seen by ${messageReaders[msg.message_id].slice(0, 2).join(', ')}${messageReaders[msg.message_id].length > 2 ? '...' : ''}` : 'Sent'}
-                            </div>
                         </div>
                     </div>
                   )}
@@ -311,34 +302,25 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .chat-header { padding: 16px 20px; background: rgba(10,10,20,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
         .group-avatar { font-size: 1.6rem; border-radius: 50%; background: #7c6af7; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
         .chat-body { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
-        
         .msg-row { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        .msg-row.highlight { transform: scale(0.98); opacity: 0.8; }
-        .bubble-wrapper { cursor: pointer; -webkit-tap-highlight-color: transparent; }
-        
-        .bubble { padding: 12px 16px; border-radius: 22px; position: relative; transition: transform 0.2s; }
+        .msg-row.highlight { opacity: 0.8; }
+        .bubble { padding: 12px 16px; border-radius: 22px; position: relative; }
         .bubble.own { background: linear-gradient(135deg, #7c6af7, #a855f7); color: white; border-bottom-right-radius: 4px; }
         .bubble.other { background: #262635; color: white; border-bottom-left-radius: 4px; }
         .sender { font-size: 0.75rem; font-weight: 700; color: #a855f7; margin-bottom: 4px; display: block; }
-        
         .insta-menu { position: absolute; bottom: calc(100% + 10px); left: 0; z-index: 1000; background: #1c1c28; border-radius: 18px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); min-width: 200px; }
         .msg-row.own .insta-menu { left: auto; right: 0; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        
         .insta-reaction-row { display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; justify-content: space-around; }
         .insta-react-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 4px; }
         .insta-react-btn:hover { transform: scale(1.3); }
         .insta-react-btn.plus { font-size: 1.1rem; color: #888; background: rgba(255,255,255,0.05); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-        
         .insta-action-list { display: flex; flex-direction: column; gap: 4px; }
         .insta-action-list button { background: none; border: none; padding: 10px 14px; color: white; text-align: left; border-radius: 10px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; font-weight: 600; }
         .insta-action-list button:hover { background: rgba(255,255,255,0.05); color: #7c6af7; }
-        .seen-list { font-size: 0.7rem; color: #666; padding: 8px 14px; font-style: italic; }
-
         .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
         .pill { background: rgba(255,255,255,0.08); border: none; border-radius: 12px; padding: 4px 10px; font-size: 0.75rem; color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .pill.me { background: rgba(124, 106, 247, 0.3); border: 1px solid #7c6af7; }
-        
         .forward-modal-overlay { position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 20px; }
         .forward-modal { background: #1a1926; border-radius: 20px; width: 100%; max-width: 360px; overflow: hidden; border: 1px solid #2a293d; }
         .modal-header { padding: 16px 20px; border-bottom: 1px solid #2a293d; display: flex; justify-content: space-between; align-items: center; }
@@ -347,7 +329,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .user-avatar-small { width: 32px; height: 32px; border-radius: 50%; background: #7c6af7; display: flex; align-items: center; justify-content: center; font-weight: 700; }
         .user-item:hover { background: rgba(124,106,247,0.1); }
         .send-forward-btn { margin-left: auto; background: #7c6af7; border: none; border-radius: 8px; color: white; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
-        
         .meta { margin-top: 6px; text-align: right; }
         .time { font-size: 0.65rem; color: rgba(255,255,255,0.4); }
         .insta-full-picker { position: absolute; bottom: 100%; left: 0; z-index: 10001; }
