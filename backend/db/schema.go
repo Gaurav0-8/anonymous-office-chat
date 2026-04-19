@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"log"
 	"os"
 
 	_ "modernc.org/sqlite"
@@ -133,7 +132,7 @@ func createTables() error {
 		return err
 	}
 
-	// Comprehensive Migrations to prevent 500 errors on existing DBs
+	// Comprehensive Migrations
 	DB.Exec("ALTER TABLE users ADD COLUMN username TEXT UNIQUE")
 	DB.Exec("ALTER TABLE users ADD COLUMN password_hash TEXT")
 	DB.Exec("ALTER TABLE users ADD COLUMN last_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
