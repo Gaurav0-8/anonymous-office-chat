@@ -3,31 +3,52 @@ package db
 import (
 	"database/sql"
 	"log"
+	"os"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
 
 var DB *sql.DB
 
-// InitDB initializes the SQLite database with the full Teams-style schema
-func InitDB(dataSourceName string) {
+// InitDB matches the calling convention in main.go
+func InitDB() error {
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./chat.db"
+	}
+
 	var err error
-	DB, err = sql.Open("sqlite", dataSourceName)
+	DB, err = sql.Open("sqlite", dbPath)
 	if err != nil {
-		log.Fatalf("Error opening database: %v", err)
+		return err
 	}
 
 	if err = DB.Ping(); err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
+		return err
 	}
 
 	if err := createTables(); err != nil {
-		log.Fatalf("Error creating tables: %v", err)
+		return err
 	}
 
 	if err := SeedMainChat(); err != nil {
-		log.Fatalf("Error seeding main chat: %v", err)
+		return err
 	}
+
+	return nil
+}
+
+func CloseDB() {
+	if DB != nil {
+		DB.Close()
+	}
+}
+
+func DeleteOldMessages() error {
+	// Deletes messages older than 30 minutes (anonymous spirit)
+	_, err := DB.Exec("DELETE FROM messages WHERE sent_at < datetime('now', '-30 minutes')")
+	return err
 }
 
 func createTables() error {
@@ -76,6 +97,15 @@ func createTables() error {
 		PRIMARY KEY (message_id, user_id)
 	);
 
+	CREATE TABLE IF NOT EXISTS message_reactions (
+		reaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		message_id  INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
+		user_id     INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+		emoji       TEXT NOT NULL,
+		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(message_id, user_id)
+	);
+
 	CREATE TABLE IF NOT EXISTS image_files (
 		file_id TEXT PRIMARY KEY,
 		file_path TEXT NOT NULL,
@@ -96,16 +126,6 @@ func createTables() error {
 	DB.Exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN deleted_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL")
-	DB.Exec(`
-		CREATE TABLE IF NOT EXISTS message_reactions (
-			reaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-			message_id  INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
-			user_id     INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-			emoji       TEXT NOT NULL,
-			created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(message_id, user_id)
-		);
-	`)
 	
 	return nil
 }
