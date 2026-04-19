@@ -138,16 +138,10 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
               onMouseEnter={() => { setHoveredMsgId(msg.message_id); fetchReaders(msg.message_id); }}
               onMouseLeave={() => setHoveredMsgId(null)}
             >
-              {!isOwnMessage(msg) && (
-                <button className="avatar" onClick={() => onStartPrivateChat(msg.sender_id)}>
-                  {msg.sender_name?.[0]?.toUpperCase()}
-                </button>
-              )}
-              
               <div className="bubble-wrapper">
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
                   {!isOwnMessage(msg) && (
-                    <span 1 className="sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
+                    <span className="sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
                       {msg.sender_name}
                     </span>
                   )}
