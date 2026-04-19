@@ -175,6 +175,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
             <div 
               key={msg.message_id} 
               className={`msg-row ${isOwnMessage(msg) ? 'own' : 'other'} ${contextMsgId === msg.message_id ? 'highlight' : ''}`}
+              style={{ zIndex: contextMsgId === msg.message_id ? 9999 : 1, position: 'relative' }}
             >              
               <div 
                 className="bubble-wrapper"
