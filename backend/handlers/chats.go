@@ -59,17 +59,33 @@ func createPrivateChat(c *fiber.Ctx) error {
 
 func getUserChats(c *fiber.Ctx) error {
 	userID, _, _, _ := mw.GetCurrentUser(c)
-	rows, _ := db.DB.Query(`
-		SELECT c.chat_id, c.chat_type,
-		(SELECT u.display_name FROM chat_participants cp JOIN users u ON cp.user_id = u.user_id WHERE cp.chat_id = c.chat_id AND cp.user_id != ? LIMIT 1) as other_name
-		FROM chats c JOIN chat_participants cp ON c.chat_id = cp.chat_id WHERE cp.user_id = ?`, userID, userID)
+	rows, err := db.DB.Query(`
+		SELECT 
+			c.chat_id, 
+			c.chat_type,
+			u.display_name as other_name
+		FROM chats c
+		JOIN chat_participants cp ON c.chat_id = cp.chat_id
+		LEFT JOIN chat_participants cp2 ON c.chat_id = cp2.chat_id AND cp2.user_id != cp.user_id
+		LEFT JOIN users u ON cp2.user_id = u.user_id
+		WHERE cp.user_id = ?
+		ORDER BY c.created_at DESC`, userID)
+	if err != nil { return err }
 	defer rows.Close()
+	
 	var res []fiber.Map
 	for rows.Next() {
 		var id int; var cType string; var name *string
 		rows.Scan(&id, &cType, &name)
+		
 		displayName := "Group Chat"
-		if cType == "private" && name != nil { displayName = *name }
+		if cType == "private" {
+			if name != nil { 
+				displayName = *name 
+			} else {
+				displayName = "Anonymous User"
+			}
+		}
 		res = append(res, fiber.Map{"chat_id": id, "chat_type": cType, "last_sender_name": displayName})
 	}
 	return c.JSON(res)
