@@ -11,22 +11,13 @@ import ThemeToggle from '@/components/ThemeToggle';
 export default function ChatPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [activeChatId, setActiveChatId] = useState(1); // Default to main group chat
+  const [activeChatId, setActiveChatId] = useState(1);
   const [activeChatType, setActiveChatType] = useState('group');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
 
-  const handleStartPrivateChat = async (targetUserId) => {
-    try {
-      const res = await chatsAPI.createPrivateChat(targetUserId);
-      handleChatSelect(res.data.chat_id, 'private');
-    } catch (err) {
-      console.error('Failed to start private chat:', err);
-    }
-  };
-
-  // Auth guard
+  // Auth guard + Restore Persistence
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -34,8 +25,25 @@ export default function ChatPage() {
       router.replace('/login');
       return;
     }
-    setUser(JSON.parse(userData));
+    const parsedUser = JSON.parse(userData);
+    setUser(parsedUser);
+
+    // Restore last active chat
+    const savedChatId = localStorage.getItem('last-active-chat-id');
+    const savedChatType = localStorage.getItem('last-active-chat-type');
+    if (savedChatId && savedChatType) {
+      setActiveChatId(parseInt(savedChatId));
+      setActiveChatType(savedChatType);
+    }
   }, [router]);
+
+  // Persist session state
+  useEffect(() => {
+    if (activeChatId) {
+      localStorage.setItem('last-active-chat-id', activeChatId.toString());
+      localStorage.setItem('last-active-chat-type', activeChatType);
+    }
+  }, [activeChatId, activeChatType]);
 
   // WebSocket connection
   useEffect(() => {
@@ -61,9 +69,22 @@ export default function ChatPage() {
     return () => ws.close();
   }, [user]);
 
-  const handleLogout = () => {
+  const handleStartPrivateChat = async (targetUserId) => {
+    try {
+      const res = await chatsAPI.createPrivateChat(targetUserId);
+      handleChatSelect(res.data.chat_id, 'private');
+      // Force refresh sidebar list
+      window.dispatchEvent(new Event('refresh-chat-list'));
+    } catch (err) {
+      console.error('Failed to start private chat:', err);
+    }
+  };
+
+  const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('last-active-chat-id');
+    localStorage.removeItem('last-active-chat-type');
     if (wsRef.current) wsRef.current.close();
     router.replace('/login');
   };
@@ -96,9 +117,9 @@ export default function ChatPage() {
         </div>
 
         <div className="sidebar-user">
-          <div className="user-avatar">👤</div>
+          <div className="user-avatar">{user.display_name?.[0]?.toUpperCase() || '👤'}</div>
           <div className="user-info">
-            <span className="user-name">Anonymous</span>
+            <span className="user-name">{user.display_name || 'Anonymous'}</span>
             <span className="user-role text-muted">{user.role}</span>
           </div>
           <div className="sidebar-user-actions" style={{ display: 'flex', gap: '4px' }}>
@@ -112,7 +133,7 @@ export default function ChatPage() {
             >
               📥
             </button>
-            <button className="sidebar-logout-btn" onClick={handleLogout} title="Logout">
+            <button className="sidebar-logout-btn" onClick={logout} title="Logout">
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>

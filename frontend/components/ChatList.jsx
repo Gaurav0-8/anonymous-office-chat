@@ -22,17 +22,24 @@ export default function ChatList({ currentUser, activeChatId, onChatSelect, ws }
     loadChats();
   }, []);
 
-  // Refresh chat list on new WebSocket messages
+  // Refresh chat list on new WebSocket messages or manual triggers
   useEffect(() => {
-    if (!ws) return;
-    const handler = (e) => {
+    const handleRefresh = () => loadChats();
+    window.addEventListener('refresh-chat-list', handleRefresh);
+    
+    if (!ws) return () => window.removeEventListener('refresh-chat-list', handleRefresh);
+    
+    const wsHandler = (e) => {
       try {
         const data = JSON.parse(e.data);
         if (data.type === 'new_message') loadChats();
       } catch {}
     };
-    ws.addEventListener('message', handler);
-    return () => ws.removeEventListener('message', handler);
+    ws.addEventListener('message', wsHandler);
+    return () => {
+      ws.removeEventListener('message', wsHandler);
+      window.removeEventListener('refresh-chat-list', handleRefresh);
+    };
   }, [ws]);
 
   return (

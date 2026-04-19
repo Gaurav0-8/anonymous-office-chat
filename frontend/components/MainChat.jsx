@@ -150,7 +150,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
             await messagesAPI.send(targetChatId, forwardMsg.message_text);
         }
         setForwardMsg(null);
-        alert(`Forwarded to ${targetUser.display_name}`);
+        window.dispatchEvent(new Event('refresh-chat-list'));
     } catch (err) { console.error('Forward failed:', err); }
   };
 
