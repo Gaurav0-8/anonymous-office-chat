@@ -10,24 +10,37 @@ import (
 
 var DB *sql.DB
 
+// InitDB initializes the SQLite database with the EXHAUSTIVE schema required by all handlers.
 func InitDB() error {
 	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" { dbPath = "./chat.db" }
+	if dbPath == "" {
+		dbPath = "./chat.db"
+	}
 
 	var err error
 	DB, err = sql.Open("sqlite", dbPath)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
-	if err = DB.Ping(); err != nil { return err }
+	if err = DB.Ping(); err != nil {
+		return err
+	}
 
-	if err := createTables(); err != nil { return err }
+	if err := createTables(); err != nil {
+		return err
+	}
 
-	_, err = DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
-	return err
+	// Ensure system chat exists
+	_, _ = DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
+	
+	return nil
 }
 
 func CloseDB() {
-	if DB != nil { DB.Close() }
+	if DB != nil {
+		DB.Close()
+	}
 }
 
 func DeleteOldMessages() error {
@@ -93,18 +106,50 @@ func createTables() error {
 		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(message_id, user_id)
 	);
+
+	CREATE TABLE IF NOT EXISTS image_files (
+		file_id TEXT PRIMARY KEY,
+		file_path TEXT NOT NULL,
+		file_name TEXT DEFAULT '',
+		mime_type TEXT DEFAULT 'image/png',
+		size_bytes INTEGER DEFAULT 0,
+		width INTEGER,
+		height INTEGER,
+		is_sticker INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS user_favorites (
+		favorite_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+		media_url TEXT NOT NULL,
+		media_type TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
 	`
 	_, err := DB.Exec(schema)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
-	// Migrations
+	// Comprehensive Migrations to prevent 500 errors on existing DBs
 	DB.Exec("ALTER TABLE users ADD COLUMN username TEXT UNIQUE")
 	DB.Exec("ALTER TABLE users ADD COLUMN password_hash TEXT")
-	DB.Exec("ALTER TABLE users ADD COLUMN last_seen DATETIME")
+	DB.Exec("ALTER TABLE users ADD COLUMN last_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
 	DB.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
 	
 	DB.Exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN deleted_at DATETIME")
+	DB.Exec("ALTER TABLE messages ADD COLUMN image_file_id TEXT")
 	DB.Exec("ALTER TABLE messages ADD COLUMN parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL")
+	
+	DB.Exec("ALTER TABLE image_files ADD COLUMN is_sticker INTEGER DEFAULT 0")
+	DB.Exec("ALTER TABLE image_files ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+	DB.Exec("ALTER TABLE image_files ADD COLUMN uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+	DB.Exec("ALTER TABLE image_files ADD COLUMN file_name TEXT DEFAULT ''")
+	DB.Exec("ALTER TABLE image_files ADD COLUMN mime_type TEXT DEFAULT 'image/png'")
+	DB.Exec("ALTER TABLE image_files ADD COLUMN size_bytes INTEGER DEFAULT 0")
+	
 	return nil
 }
