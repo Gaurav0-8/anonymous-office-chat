@@ -192,7 +192,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
                   {msg.parent_id && (
                     <div className="reply-quote-bar">
-                      <span className="quote-sender">{msg.parent_sender}</span>
+                      <span className="quote-sender">{msg.parent_sender === currentUser.display_name ? 'You' : msg.parent_sender}</span>
                       <p className="quote-text">{msg.parent_text}</p>
                     </div>
                   )}
@@ -278,7 +278,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
       {replyTo && (
         <div className="reply-preview">
           <div className="preview-content">
-            <span className="preview-sender">Replying to {replyTo.sender_name}</span>
+            <span className="preview-sender">Replying to {replyTo.sender_id === currentUser.user_id ? 'You' : replyTo.sender_name}</span>
             <p className="preview-text">{replyTo.message_text}</p>
           </div>
           <button className="preview-close" onClick={() => setReplyTo(null)}>✕</button>
