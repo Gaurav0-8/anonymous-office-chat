@@ -1,6 +1,6 @@
 package handlers
 
-// DisplayNames contains the predefined anonymous display names used in auth.go
+// DisplayNames is the canonical list of 50 predefined anonymous display names used in auth.go
 var DisplayNames = []string{
 	"Crimson Phoenix", "Azure Dragon", "Emerald Wolf", "Golden Eagle", "Silver Fox", 
 	"Violet Raven", "Amber Tiger", "Sapphire Hawk", "Ruby Panther", "Jade Serpent", 
@@ -16,6 +16,7 @@ var DisplayNames = []string{
 	"Nebula Wolf", "Comet Cheetah",
 }
 
+// IsValidDisplayName checks if name is in the predefined list
 func IsValidDisplayName(name string) bool {
 	for _, n := range DisplayNames {
 		if n == name { return true }
