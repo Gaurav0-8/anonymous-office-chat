@@ -105,13 +105,15 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
               onMouseEnter={() => !msg.is_read && !isOwnMessage(msg) && messagesAPI.markRead(msg.message_id)}
             >
               <div className={`message-bubble ${isOwnMessage(msg) ? 'message-own' : 'message-other'}`}>
-                {msg.image_file_id && (
-                  <MediaMessage
-                    fileId={msg.image_file_id}
-                    width={msg.image_width}
-                    height={msg.image_height}
-                    onOpen={setSelectedImage}
-                  />
+                {(msg.image_url || msg.image_file_id) && (
+                  <div className="media-vibe">
+                    <MediaMessage
+                      fileId={msg.image_url || msg.image_file_id}
+                      width={msg.image_width}
+                      height={msg.image_height}
+                      onOpen={setSelectedImage}
+                    />
+                  </div>
                 )}
                 {msg.message_text && <p className="message-text">{msg.message_text}</p>}
                 <div className="message-meta">
@@ -152,9 +154,14 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
           background: var(--bg-secondary); border-bottom: 1px solid var(--border);
           position: sticky; top: 0; z-index: 100;
         }
+        .media-vibe {
+          width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 6px;
+          max-width: min(100%, 400px);
+        }
         @media (max-width: 768px) {
           .chat-header { display: none; }
           .chat-messages { margin-top: 60px; }
+          .media-vibe { max-width: 100%; }
         }
         .back-btn {
           background: none; border: none; cursor: pointer; font-size: 1.2rem;

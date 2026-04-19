@@ -225,8 +225,8 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                     </div>
                   )}
                   
-                  {msg.image_file_id ? (
-                     <div className="media-attachment-container">
+                  {msg.image_file_id || msg.image_url ? (
+                     <div className="media-vibe">
                         <MediaMessage 
                             fileId={msg.image_url || msg.image_file_id} 
                             width={msg.image_width} 
@@ -437,18 +437,16 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
           .subtitle { font-size: 0.8rem; }
         }
 
+        .media-vibe {
+          width: 100%; border-radius: 12px; overflow: hidden; margin-top: 4px;
+          max-width: min(100%, 400px);
+        }
         @media (max-width: 768px) {
           .chat-header { display: none; }
           .chat-body { padding: 12px 10px; gap: 10px; }
           .bubble-wrapper { max-width: 92%; }
           .bubble { padding: 9px 12px; font-size: 0.9rem; }
-          .insta-menu { min-width: 170px; padding: 8px; font-size: 0.85rem; }
-          .insta-action-list button { padding: 8px 10px; font-size: 0.85rem; }
-          .reactions-pill-container { gap: 3px; margin-top: 6px; }
-          .pill { padding: 2px 6px; font-size: 0.65rem; }
-          .header-icon { width: 30px; height: 30px; font-size: 1.1rem; margin-right: 8px; }
-          .title { font-size: 1.1rem; }
-          .subtitle { font-size: 0.75rem; }
+          .media-vibe { max-width: 100%; }
         }
       `}</style>
     </div>
