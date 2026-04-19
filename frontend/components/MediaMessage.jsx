@@ -18,16 +18,10 @@ export default function MediaMessage({ fileId, width, height, onOpen }) {
       <img
         src={src}
         alt="Shared media"
-        style={{ aspectRatio, minHeight: '100px', backgroundColor: '#1c1c28' }}
+        style={{ aspectRatio, maxWidth: '100%', display: 'block' }}
         className="media-msg-img fade-in"
         loading="lazy"
         onClick={() => onOpen(src)}
-        onError={(e) => { 
-          // Last resort fallback
-          if (!e.target.src.includes('undefined') && !e.target.src.includes('/uploads/')) {
-             e.target.src = `/uploads/${fileId}`;
-          }
-        }}
       />
 
       <style jsx>{`
