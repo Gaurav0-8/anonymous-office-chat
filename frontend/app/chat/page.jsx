@@ -225,9 +225,9 @@ export default function ChatPage() {
         </div>
 
         <div className="sidebar-user">
-          <div className="user-avatar">{user.display_name?.[0]?.toUpperCase() || '👤'}</div>
+          <div className="user-avatar" title="Self-identity hidden for anonymity">👤</div>
           <div className="user-info">
-            <span className="user-name">{user.display_name || 'Anonymous'}</span>
+            <span className="user-name">You (Anonymous)</span>
             <span className="user-role text-muted">{user.role}</span>
           </div>
           <div className="sidebar-user-actions" style={{ display: 'flex', gap: '4px' }}>

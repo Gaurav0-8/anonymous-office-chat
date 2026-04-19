@@ -20,20 +20,20 @@ export default function WelcomePage() {
           <p>Connect with your colleagues anonymously. Share thoughts freely in a secure, moderated environment.</p>
         </div>
 
-        {/* Features */}
-        <div className="welcome-features">
-          {[
-            { icon: '👤', title: 'Anonymous Identity', desc: 'Choose from 50 unique display names. Your real identity stays private.' },
-            { icon: '⏱️', title: 'Auto-Delete Messages', desc: 'Messages automatically delete after 30 minutes for privacy.' },
-            { icon: '🔒', title: 'Secure & Moderated', desc: 'Admins can moderate to maintain a respectful environment.' },
-          ].map((f) => (
-            <div key={f.title} className="welcome-feature-card card">
-              <span className="welcome-feature-icon">{f.icon}</span>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </div>
-          ))}
-        </div>
+          {/* Feature Grid */}
+          <div className="welcome-features">
+            {[
+              { icon: '🛡️', title: 'Total Privacy', desc: 'No phone numbers or emails. Your workspace identity remains a secret.' },
+              { icon: '⏱️', title: '30m Memory', desc: 'Messages automatically dissolve every 30 minutes. No logs, no traces.' },
+              { icon: '💼', title: 'Office Focused', desc: 'Securely connect with colleagues in a moderated, professional space.' },
+            ].map((f, i) => (
+              <div key={f.title} className="feature-card glass highlight" style={{ animationDelay: `${i * 0.15}s` }}>
+                <div className="feature-icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.desc}</p>
+              </div>
+            ))}
+          </div>
 
         {/* CTA */}
         <div className="welcome-cta">
