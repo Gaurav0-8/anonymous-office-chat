@@ -97,7 +97,10 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
       {showRich && (
         <div className="rich-picker-popover">
           <RichPicker 
-            onEmojiSelect={(emoji) => setText(prev => prev + emoji)}
+            onEmojiSelect={(emoji) => {
+              setText(prev => prev + emoji);
+              textareaRef.current?.focus(); // Re-focus to keep typing
+            }}
             onGifSelect={(url) => { onImageSend(url, ''); setShowRich(false); }}
             onStickerSelect={(content) => { onSend(content); setShowRich(false); }}
             onClose={() => setShowRich(false)}
@@ -114,6 +117,7 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
           border-top: 1px solid var(--border);
           background: var(--bg-secondary);
           padding: 12px 16px;
+          position: relative; /* CRITICAL: Anchors the absolute popovers */
         }
         .message-input-bar {
           display: flex;
@@ -159,10 +163,10 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
         .send-btn.active:hover { background: var(--accent-hover); transform: scale(1.05); }
         .rich-picker-popover {
           position: absolute;
-          bottom: 100%;
+          bottom: calc(100% + 8px);
           left: 16px;
-          margin-bottom: 8px;
-          z-index: 100;
+          z-index: 1000; /* Ensure it floats above messages */
+          filter: drop-shadow(0 8px 32px rgba(0,0,0,0.5));
         }
         @media (max-width: 480px) {
           .rich-picker-popover {

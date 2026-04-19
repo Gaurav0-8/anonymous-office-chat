@@ -51,15 +51,19 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
     }
   };
 
-  const handleGifSearch = (e) => {
-    const val = e.target.value;
-    setGifSearch(val);
-    if (val.length > 2) {
-      const timeoutId = setTimeout(() => fetchGifs(val), 500);
-      return () => clearTimeout(timeoutId);
-    } else if (val === '') {
-      fetchGifs('trending');
+  useEffect(() => {
+    if (activeTab === 'gif') {
+      if (gifSearch.length > 2) {
+        const timeoutId = setTimeout(() => fetchGifs(gifSearch), 500);
+        return () => clearTimeout(timeoutId);
+      } else if (gifSearch === '') {
+        fetchGifs('trending');
+      }
     }
+  }, [gifSearch, activeTab]);
+
+  const handleGifSearch = (e) => {
+    setGifSearch(e.target.value);
   };
 
   return (
