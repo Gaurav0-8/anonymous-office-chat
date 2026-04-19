@@ -13,7 +13,6 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
   const [showRich, setShowRich] = useState(false);
   const textareaRef = useRef(null);
 
-  // ⚡ Auto-focus when focusTrigger changes (clicked Reply)
   useEffect(() => {
     if (focusTrigger) {
       textareaRef.current?.focus();
@@ -27,11 +26,7 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
       await onSend(text.trim());
       setText('');
       textareaRef.current?.focus();
-    } catch (err) {
-      console.error('Failed to send message:', err);
-    } finally {
-      setSending(false);
-    }
+    } catch (err) { console.error('Send error', err); } finally { setSending(false); }
   };
 
   const handleKeyDown = (e) => {
@@ -49,60 +44,17 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
       await onImageSend(data.file_id, text.trim());
       setText('');
       setShowMedia(false);
-    } catch (err) {
-      console.error('Failed to send image:', err);
-    }
+    } catch (err) { console.error('Upload error', err); }
   };
 
   return (
     <div className="message-input-wrapper">
       <div className="message-input-bar">
-        <button
-          className="input-action-btn"
-          id="emoji-trigger-btn"
-          onClick={() => { 
-            setShowRich(!showRich); 
-            setShowMedia(false); 
-          }}
-          disabled={disabled}
-          title="Emojis & GIFs"
-        >
-          😊
-        </button>
-
-        <button
-          className="input-action-btn"
-          onClick={() => { setShowMedia(!showMedia); setShowRich(false); }}
-          disabled={disabled}
-          title="Attach media"
-        >
-          📎
-        </button>
-
-        <textarea
-          ref={textareaRef}
-          className="message-textarea"
-          placeholder={disabled ? 'Connecting...' : 'Type a message... (Enter to send)'}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={disabled || sending}
-          rows={1}
-        />
-
-        <button
-          className={`send-btn ${text.trim() ? 'active' : ''}`}
-          onClick={handleSend}
-          disabled={!text.trim() || disabled || sending}
-          title="Send message"
-        >
-          {sending ? (
-            <div className="spinner" style={{ width: 18, height: 18 }} />
-          ) : (
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          )}
+        <button className="input-action-btn" onClick={() => { setShowRich(!showRich); setShowMedia(false); }} disabled={disabled}>😊</button>
+        <button className="input-action-btn" onClick={() => { setShowMedia(!showMedia); setShowRich(false); }} disabled={disabled}>📎</button>
+        <textarea ref={textareaRef} className="message-textarea" placeholder={disabled ? 'Connecting...' : 'Type a message...'} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={handleKeyDown} disabled={disabled || sending} rows={1} />
+        <button className={`send-btn ${text.trim() ? 'active' : ''}`} onClick={handleSend} disabled={!text.trim() || disabled || sending}>
+          {sending ? <div className="spinner" /> : <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>}
         </button>
       </div>
 
@@ -110,14 +62,8 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
         <div className="rich-picker-portal-overlay" onClick={() => setShowRich(false)}>
           <div className="rich-picker-popover-fixed" onClick={e => e.stopPropagation()}>
             <RichPicker 
-              onEmojiSelect={(emoji) => {
-                setText(prev => prev + emoji);
-                textareaRef.current?.focus();
-              }}
-              onGifSelect={async (url) => { 
-                await onImageSend(url, ''); 
-                setShowRich(false); 
-              }}
+              onEmojiSelect={(emoji) => { setText(prev => prev + emoji); textareaRef.current?.focus(); }}
+              onGifSelect={async (url) => { await onImageSend(url, ''); setShowRich(false); }}
               onClose={() => setShowRich(false)}
             />
           </div>
@@ -125,20 +71,18 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
         document.body
       )}
 
-      {showMedia && (
-        <MediaPicker onSelect={handleImageUpload} onClose={() => setShowMedia(false)} />
-      )}
+      {showMedia && <MediaPicker onSelect={handleImageUpload} onClose={() => setShowMedia(false)} />}
 
       <style jsx>{`
-        .message-input-wrapper { border-top: 1px solid var(--border); background: var(--bg-secondary); padding: 12px 16px; position: relative; }
-        .message-input-bar { display: flex; align-items: flex-end; gap: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; }
-        .message-input-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .input-action-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px; opacity: 0.6; }
-        .input-action-btn:hover { opacity: 1; }
-        .message-textarea { flex: 1; background: transparent; border: none; outline: none; color: var(--text-primary); font-size: 0.9rem; line-height: 1.5; resize: none; max-height: 120px; overflow-y: auto; font-family: inherit; }
-        .send-btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .send-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
-        .rich-picker-popover-fixed { position: fixed; bottom: 80px; left: 20px; z-index: 10000; filter: drop-shadow(0 8px 40px rgba(0,0,0,0.6)); }
+        .message-input-wrapper { border-top: 1px solid #2a293d; background: #1a1926; padding: 12px 16px; }
+        .message-input-bar { display: flex; align-items: flex-end; gap: 10px; background: #232231; border: 1px solid #2a293d; border-radius: 12px; padding: 8px 12px; }
+        .input-action-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.6; }
+        .message-textarea { flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 0.9rem; resize: none; max-height: 120px; }
+        .send-btn { background: #232231; border: 1px solid #2a293d; color: #8888aa; border-radius: 8px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .send-btn.active { background: #7c6af7; color: white; }
+        .rich-picker-popover-fixed { position: fixed; bottom: 80px; left: 20px; z-index: 10000; }
+        .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

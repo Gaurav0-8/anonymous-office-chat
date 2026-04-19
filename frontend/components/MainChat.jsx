@@ -11,10 +11,10 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [replyTo, setReplyTo] = useState(null); // The message object being replied to
+  const [replyTo, setReplyTo] = useState(null);
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
-  const [messageReaders, setMessageReaders] = useState({}); // { msgId: ["Name1", "Name2"] }
-  const [focusTrigger, setFocusTrigger] = useState(0); // Incremented to trigger focus
+  const [messageReaders, setMessageReaders] = useState({});
+  const [focusTrigger, setFocusTrigger] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -45,7 +45,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // WebSocket Handlers
   useEffect(() => {
     if (!ws) return;
     const handleMessage = (event) => {
@@ -77,7 +76,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
             return { ...m, reactions: updated };
           }));
         }
-      } catch { /* ignore */ }
+      } catch (e) { console.error('WS parse err', e); }
     };
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
@@ -85,12 +84,9 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
 
   const handleSend = async (text) => {
     try {
-      // Corrected: Passing message_id for reply support
       await messagesAPI.send(chatId, text, replyTo ? parseInt(replyTo.message_id) : null);
       setReplyTo(null);
-    } catch (err) {
-      console.error('Send failed:', err);
-    }
+    } catch (err) { console.error('Send failed:', err); }
   };
 
   const handleImageSend = async (fileId, text) => {
@@ -106,7 +102,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     try {
       const res = await messagesAPI.getReaders(msgId);
       setMessageReaders(prev => ({ ...prev, [msgId]: res.data }));
-    } catch {}
+    } catch (e) { /* ignore */ }
   };
 
   const handleCopy = (text) => {
@@ -127,7 +123,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         </div>
       </div>
 
-      <div className="chat-body scrollable">
+      <div className="chat-body">
         {loading ? (
           <div className="centered"><div className="spinner" /></div>
         ) : (
@@ -137,7 +133,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
               className={`msg-row ${isOwnMessage(msg) ? 'own' : 'other'}`}
               onMouseEnter={() => { setHoveredMsgId(msg.message_id); fetchReaders(msg.message_id); }}
               onMouseLeave={() => setHoveredMsgId(null)}
-            >
+            >              
               <div className="bubble-wrapper">
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
                   {!isOwnMessage(msg) && (
@@ -146,7 +142,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                     </span>
                   )}
 
-                  {/* Reply Quote Block */}
                   {msg.parent_id && (
                     <div className="reply-quote-bar">
                       <span className="quote-sender">{msg.parent_sender}</span>
@@ -157,7 +152,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                   {msg.image_file_id ? (
                     <MediaMessage fileId={msg.image_file_id} onOpen={(url) => setSelectedImage(url)} />
                   ) : /^http.*\.(jpg|jpeg|gif|png|webp)(\?.*)?$/i.test(msg.message_text) ? (
-                    <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker" />
+                    <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker" alt="Chat inline media" />
                   ) : (
                     <p className="text">{msg.message_text}</p>
                   )}
@@ -168,7 +163,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                     </span>
                   </div>
 
-                  {/* Reaction Pills */}
                   {msg.reactions?.length > 0 && (
                     <div className="reactions-pill-container">
                       {msg.reactions.map(r => (
@@ -179,7 +173,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                     </div>
                   )}
 
-                  {/* TEAMS STYLE HOVER ACTIONS */}
                   <div className={`teams-hover-actions ${hoveredMsgId === msg.message_id ? 'visible' : ''}`}>
                     <div className="emoji-row">
                       {['👍', '❤️', '😂', '😮', '😢'].map(e => (
@@ -187,10 +180,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                       ))}
                     </div>
                     <div className="icon-row">
-                       <button title="Reply with Quote" onClick={() => { 
-                         setReplyTo(msg); 
-                         setFocusTrigger(prev => prev + 1); 
-                       }}>↩️</button>
+                       <button title="Reply with Quote" onClick={() => { setReplyTo(msg); setFocusTrigger(f => f + 1); }}>↩️</button>
                        <button title="Copy Text" onClick={() => handleCopy(msg.message_text)}>📋</button>
                        <div className="divider" />
                        <div className="seen-by" title={messageReaders[msg.message_id]?.join(', ') || 'No readers yet'}>
@@ -216,13 +206,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         </div>
       )}
 
-      <MessageInput 
-        onSend={handleSend} 
-        onImageSend={handleImageSend} 
-        disabled={!wsReady} 
-        chatId={chatId} 
-        focusTrigger={focusTrigger}
-      />
+      <MessageInput onSend={handleSend} onImageSend={handleImageSend} disabled={!wsReady} chatId={chatId} focusTrigger={focusTrigger} />
 
       {selectedImage && <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />}
 
@@ -233,71 +217,37 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .group-avatar { font-size: 1.5rem; background: #2a293d; padding: 6px; border-radius: 8px; }
         .title { font-size: 1rem; margin: 0; color: white; }
         .subtitle { font-size: 0.75rem; color: #8888aa; }
-        
         .chat-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
         .msg-row { display: flex; align-items: flex-end; gap: 10px; position: relative; }
         .msg-row.own { flex-direction: row-reverse; }
-        
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #7c6af7; color: white; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
         .bubble-wrapper { max-width: 65%; position: relative; }
-        
-        .bubble { 
-          padding: 10px 14px; border-radius: 8px; position: relative; 
-          box-shadow: 0 1px 2px rgba(0,0,0,0.2); 
-        }
+        .bubble { padding: 10px 14px; border-radius: 8px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
         .bubble.own { background: #323145; color: white; }
         .bubble.other { background: #232231; color: white; }
-        
         .sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; cursor: pointer; display: block; margin-bottom: 4px; }
         .text { font-size: 0.95rem; margin: 0; line-height: 1.4; word-wrap: break-word; }
-        
-        .reply-quote-bar { 
-          background: rgba(0,0,0,0.2); border-left: 3px solid #7c6af7; 
-          padding: 8px; border-radius: 4px; margin-bottom: 8px; 
-        }
+        .reply-quote-bar { background: rgba(0,0,0,0.2); border-left: 3px solid #7c6af7; padding: 8px; border-radius: 4px; margin-bottom: 8px; }
         .quote-sender { font-size: 0.7rem; font-weight: 700; color: #7c6af7; display: block; }
         .quote-text { font-size: 0.8rem; margin: 2px 0 0; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        /* TEAMS HOVER PANEL */
-        .teams-hover-actions { 
-          position: absolute; top: -35px; right: 0; 
-          background: #1a1926; border: 1px solid #2a293d; 
-          border-radius: 8px; padding: 4px; display: flex; flex-direction: column;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.5); opacity: 0; pointer-events: none;
-          transition: all 0.2s; z-index: 1000;
-        }
+        .teams-hover-actions { position: absolute; top: -35px; right: 0; background: #1a1926; border: 1px solid #2a293d; border-radius: 8px; padding: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: all 0.2s; z-index: 1000; }
         .msg-row.own .teams-hover-actions { right: auto; left: 0; }
         .teams-hover-actions.visible { opacity: 1; pointer-events: auto; top: -45px; }
-        
         .emoji-row { display: flex; gap: 6px; padding: 4px; border-bottom: 1px solid #2a293d; }
-        .emoji-row button { background: none; border: none; font-size: 1.2rem; cursor: pointer; transition: transform 0.1s; }
-        .emoji-row button:hover { transform: scale(1.3); }
-        
+        .emoji-row button { background: none; border: none; font-size: 1.2rem; cursor: pointer; }
         .icon-row { display: flex; align-items: center; gap: 10px; padding: 6px; }
         .icon-row button { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.7; }
-        .icon-row button:hover { opacity: 1; }
         .divider { width: 1px; height: 14px; background: #2a293d; }
         .seen-by { font-size: 0.75rem; color: #8888aa; display: flex; align-items: center; gap: 4px; cursor: help; }
-
         .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
         .pill { background: #111019; border: 1px solid #2a293d; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; color: #8888aa; cursor: pointer; }
         .pill.me { border-color: #7c6af7; background: rgba(124, 106, 247, 0.1); }
         .meta { margin-top: 4px; text-align: right; }
         .time { font-size: 0.65rem; color: #55556a; }
-
-        .reply-preview { 
-          background: #1a1926; border-left: 4px solid #7c6af7; 
-          padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;
-          border-top: 1px solid #2a293d;
-        }
+        .reply-preview { background: #1a1926; border-left: 4px solid #7c6af7; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a293d; }
         .preview-sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; }
         .preview-text { font-size: 0.85rem; color: #8888aa; margin: 2px 0 0; }
-        .preview-close { background: none; border: none; color: white; cursor: pointer; font-size: 1rem; }
-        
+        .preview-close { background: none; border: none; color: white; cursor: pointer; }
         .sticker { max-width: 250px; border-radius: 8px; cursor: pointer; }
-        .centered { padding: 40px; text-align: center; }
-        .scrollable::-webkit-scrollbar { width: 6px; }
-        .scrollable::-webkit-scrollbar-thumb { background: #2a293d; border-radius: 3px; }
       `}</style>
     </div>
   );
