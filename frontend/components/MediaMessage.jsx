@@ -14,15 +14,29 @@ export default function MediaMessage({ fileId, width, height, onOpen }) {
   const aspectRatio = width && height ? `${width}/${height}` : 'auto';
 
   return (
-    <div className="media-message">
+    <div className="media-message-container">
       <img
         src={src}
         alt="Shared media"
-        style={{ aspectRatio, maxWidth: '100%', display: 'block' }}
+        style={{ maxWidth: '100%', maxHeight: '450px', objectFit: 'contain', display: 'block', borderRadius: '12px' }}
         className="media-msg-img fade-in"
         loading="lazy"
         onClick={() => onOpen(src)}
       />
+      <style jsx>{`
+        .media-message-container {
+          width: fit-content;
+          max-width: 100%;
+          background: rgba(255,255,255,0.03);
+          border-radius: 12px;
+          min-width: 100px;
+          min-height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+      `}</style>
 
       <style jsx>{`
         .media-message { width: 100%; cursor: pointer; margin-bottom: 4px; border-radius: 18px; overflow: hidden; }

@@ -327,7 +327,10 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .msg-row.own { justify-content: flex-end; }
         .msg-row.other { justify-content: flex-start; }
         
-        .bubble-wrapper { max-width: 70%; display: flex; flex-direction: column; position: relative; }
+        .bubble-wrapper { 
+          max-width: 70%; display: flex; flex-direction: column; position: relative; 
+          align-items: flex-start; 
+        }
         .msg-row.own .bubble-wrapper { align-items: flex-end; }
         .msg-row.other .bubble-wrapper { align-items: flex-start; }
 
@@ -336,7 +339,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .bubble { 
           padding: 10px 14px; border-radius: 18px; position: relative; 
           font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
-          width: auto;
+          width: fit-content; max-width: 100%;
         }
         .msg-row.own .bubble { margin-left: auto; }
         .bubble.own { background: linear-gradient(135deg, #7c6af7, #a855f7); color: white; border-bottom-right-radius: 4px; }
