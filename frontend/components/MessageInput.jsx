@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
 import { imagesAPI } from '@/lib/api';
+import { createPortal } from 'react-dom';
 import MediaPicker from './MediaPicker';
 import RichPicker from './RichPicker';
 
@@ -51,7 +51,12 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
       <div className="message-input-bar">
         <button
           className="input-action-btn"
-          onClick={() => { setShowRich(!showRich); setShowMedia(false); }}
+          id="emoji-trigger-btn"
+          onClick={() => { 
+            console.log('[MessageInput] Emoji button clicked, current state:', showRich);
+            setShowRich(!showRich); 
+            setShowMedia(false); 
+          }}
           disabled={disabled}
           title="Emojis, GIFs & Stickers"
         >
@@ -94,18 +99,27 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
         </button>
       </div>
 
-      {showRich && (
-        <div className="rich-picker-popover">
-          <RichPicker 
-            onEmojiSelect={(emoji) => {
-              setText(prev => prev + emoji);
-              textareaRef.current?.focus(); // Re-focus to keep typing
-            }}
-            onGifSelect={(url) => { onImageSend(url, ''); setShowRich(false); }}
-            onStickerSelect={(content) => { onSend(content); setShowRich(false); }}
-            onClose={() => setShowRich(false)}
-          />
-        </div>
+      {showRich && typeof document !== 'undefined' && createPortal(
+        <div className="rich-picker-portal-overlay" onClick={() => setShowRich(false)}>
+          <div className="rich-picker-popover-fixed" onClick={e => e.stopPropagation()}>
+            <RichPicker 
+              onEmojiSelect={(emoji) => {
+                setText(prev => prev + emoji);
+                textareaRef.current?.focus();
+              }}
+              onGifSelect={async (url) => { 
+                await onImageSend(url, ''); 
+                setShowRich(false); 
+              }}
+              onStickerSelect={async (content) => { 
+                await onSend(content); 
+                setShowRich(false); 
+              }}
+              onClose={() => setShowRich(false)}
+            />
+          </div>
+        </div>,
+        document.body
       )}
 
       {showMedia && (
@@ -161,16 +175,24 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
         }
         .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .send-btn.active:hover { background: var(--accent-hover); transform: scale(1.05); }
-        .rich-picker-popover {
-          position: absolute;
-          bottom: calc(100% + 8px);
-          left: 16px;
-          z-index: 1000; /* Ensure it floats above messages */
-          filter: drop-shadow(0 8px 32px rgba(0,0,0,0.5));
+        .rich-picker-portal-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: transparent;
+        }
+        .rich-picker-popover-fixed {
+          position: fixed;
+          bottom: 80px;
+          left: 20px;
+          z-index: 10000;
+          filter: drop-shadow(0 8px 40px rgba(0,0,0,0.6));
         }
         @media (max-width: 480px) {
-          .rich-picker-popover {
+          .rich-picker-popover-fixed {
+            bottom: 0;
             left: 0;
+            right: 0;
             width: 100%;
           }
         }
