@@ -23,6 +23,7 @@ export default function ChatPage() {
     return 'group';
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dynamicTitle, setDynamicTitle] = useState('Office Chat');
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
   const [toast, setToast] = useState(null);
@@ -32,6 +33,18 @@ export default function ChatPage() {
   const userRef = useRef(user);
   useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
   useEffect(() => { userRef.current = user; }, [user]);
+
+  // Fetch Chat Name for Mobile Header
+  useEffect(() => {
+    if (activeChatType === 'group') {
+      setDynamicTitle('Office Chat');
+    } else {
+      chatsAPI.getChatDetails(activeChatId).then(res => {
+        const other = res.data.participants?.find(p => p.user_id !== userRef.current?.user_id);
+        setDynamicTitle(other?.display_name || 'Private Chat');
+      }).catch(() => setDynamicTitle('Private Chat'));
+    }
+  }, [activeChatId, activeChatType]);
 
   useEffect(() => {
     if (toast) {
@@ -260,7 +273,7 @@ export default function ChatPage() {
             </button>
           )}
           <span className="mobile-title">
-            {activeChatType === 'group' ? '🛡️ Office Chat' : '💬 Private Chat'}
+            {activeChatType === 'group' ? `🛡️ ${dynamicTitle}` : `💬 ${dynamicTitle}`}
           </span>
         </div>
         {activeChatType === 'group' ? (
