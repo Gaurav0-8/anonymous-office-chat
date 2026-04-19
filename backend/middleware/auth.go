@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gaurav/chat-app/db"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -41,6 +42,14 @@ func AuthRequired() fiber.Handler {
 		c.Locals("username", claims.Username)
 		c.Locals("display_name", claims.DisplayName)
 		c.Locals("role", claims.Role)
+
+		// VITAL: Verify user actually exists in the current database
+		// This forces logout for users with old tokens after a database wipe.
+		var dbID int
+		err = db.DB.QueryRow("SELECT user_id FROM users WHERE user_id = ?", claims.UserID).Scan(&dbID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusUnauthorized, "User session invalid. Please log in again.")
+		}
 
 		return c.Next()
 	}

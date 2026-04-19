@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,6 +17,7 @@ func SetupAdminRoutes(app *fiber.App) {
 	admin.Post("/ban/:user_id", banUser)
 	admin.Post("/unban/:user_id", unbanUser)
 	admin.Get("/users", listUsers)
+	admin.Post("/reset-database", resetDatabase)
 }
 
 // adminOnly middleware ensures only users with role='admin' can access
@@ -143,4 +145,31 @@ func listUsers(c *fiber.Ctx) error {
 		})
 	}
 	return c.JSON(users)
+}
+
+// POST /admin/reset-database — Nuclear wipe of all dynamic data for production start
+func resetDatabase(c *fiber.Ctx) error {
+	setupToken := c.Get("X-Admin-Setup-Token")
+	envToken := os.Getenv("ADMIN_SETUP_TOKEN")
+	if envToken == "" || setupToken != envToken {
+		return fiber.NewError(fiber.StatusForbidden, "Invalid setup token")
+	}
+
+	// Order matters for foreign key constraints
+	db.DB.Exec("DELETE FROM message_reactions")
+	db.DB.Exec("DELETE FROM message_reads")
+	db.DB.Exec("DELETE FROM messages")
+	db.DB.Exec("DELETE FROM chat_participants")
+	db.DB.Exec("DELETE FROM chats WHERE chat_id > 1")
+	db.DB.Exec("DELETE FROM users")
+	db.DB.Exec("DELETE FROM user_favorites")
+	db.DB.Exec("DELETE FROM image_files")
+
+	// Re-ensure main chat exists
+	db.DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Database wiped clean for production fresh start",
+	})
 }
