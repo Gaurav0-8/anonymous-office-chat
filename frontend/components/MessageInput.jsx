@@ -59,7 +59,7 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
             setShowMedia(false); 
           }}
           disabled={disabled}
-          title="Emojis, GIFs & Stickers"
+          title="Emojis & GIFs"
         >
           😊
         </button>
@@ -109,10 +109,6 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
                 textareaRef.current?.focus();
               }}
               onGifSelect={async (url) => { 
-                await onImageSend(url, ''); 
-                setShowRich(false); 
-              }}
-              onStickerSelect={async (url) => { 
                 await onImageSend(url, ''); 
                 setShowRich(false); 
               }}
