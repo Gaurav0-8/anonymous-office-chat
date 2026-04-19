@@ -62,7 +62,9 @@ export const chatsAPI = {
 
 // ── Messages ──────────────────────────────────────────────────────────────────
 export const messagesAPI = {
-  send: (chatId, messageText) => api.post('/messages', { chat_id: chatId, message_text: messageText }),
+  send: (chatId, messageText, parentMessageId = null) => 
+    api.post('/messages', { chat_id: chatId, message_text: messageText, parent_message_id: parentMessageId }),
+  react: (messageId, emoji) => api.post(`/messages/${messageId}/react`, { emoji }),
   edit: (messageId, messageText) => api.patch(`/messages/${messageId}/edit`, { message_text: messageText }),
   delete: (messageId) => api.patch(`/messages/${messageId}/delete`),
   getReaders: (messageId) => api.get(`/messages/${messageId}/readers`),

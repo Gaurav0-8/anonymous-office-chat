@@ -51,6 +51,7 @@ func CreateSchema() error {
 		sender_id    INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 		message_text TEXT NOT NULL DEFAULT '',
 		image_file_id TEXT REFERENCES image_files(file_id) ON DELETE SET NULL,
+		parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL,
 		is_edited    INTEGER NOT NULL DEFAULT 0,
 		is_deleted   INTEGER NOT NULL DEFAULT 0,
 		edited_at    DATETIME,
@@ -63,6 +64,15 @@ func CreateSchema() error {
 		message_id INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
 		user_id    INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 		read_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(message_id, user_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS message_reactions (
+		reaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		message_id  INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
+		user_id     INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+		emoji       TEXT NOT NULL,
+		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(message_id, user_id)
 	);
 

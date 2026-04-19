@@ -5,18 +5,15 @@ import { chatsAPI, messagesAPI, imagesAPI } from '@/lib/api';
 import MessageInput from './MessageInput';
 import MediaMessage from './MediaMessage';
 import ImageModal from './ImageModal';
-import AdminControls from './AdminControls';
-import UserSidebar from './UserSidebar';
 
 export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPrivateChat }) {
   const [messages, setMessages] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [showAdminControls, setShowAdminControls] = useState(false);
-  const [showUserSidebar, setShowUserSidebar] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [messageReaders, setMessageReaders] = useState({}); // { msgId: [names] }
+  const [replyTo, setReplyTo] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, msg }
+  const [messageReaders, setMessageReaders] = useState({});
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -41,68 +38,74 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
 
   useEffect(() => {
     loadData();
+    const handleGlobalClick = () => setContextMenu(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
   }, [loadData]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  // WebSocket Handlers
   useEffect(() => {
     if (!ws) return;
     const handleMessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'new_message' && data.message?.chat_id === chatId) {
-          setMessages((prev) => {
-            const exists = prev.find((m) => m.message_id === data.message.message_id);
-            if (exists) return prev;
-            return [...prev, { ...data.message, is_read: false, is_edited: false }];
-          });
+          setMessages(prev => [...prev.filter(m => m.message_id !== data.message.message_id), data.message]);
+        }
+        if (data.type === 'reaction_update') {
+          setMessages(prev => prev.map(m => {
+            if (m.message_id !== data.data.message_id) return m;
+            const existing = m.reactions || [];
+            let updated = [...existing];
+            const reactionIdx = updated.findIndex(r => r.emoji === data.data.emoji);
+            
+            if (data.data.action === 'add') {
+              if (reactionIdx > -1) {
+                updated[reactionIdx] = { ...updated[reactionIdx], count: updated[reactionIdx].count + 1 };
+                if (data.data.user_id === currentUser.user_id) updated[reactionIdx].me = true;
+              } else {
+                updated.push({ emoji: data.data.emoji, count: 1, me: data.data.user_id === currentUser.user_id });
+              }
+            } else {
+              if (reactionIdx > -1) {
+                updated[reactionIdx].count = Math.max(0, updated[reactionIdx].count - 1);
+                if (data.data.user_id === currentUser.user_id) updated[reactionIdx].me = false;
+                if (updated[reactionIdx].count === 0) updated = updated.filter(r => r.emoji !== data.data.emoji);
+              }
+            }
+            return { ...m, reactions: updated };
+          }));
         }
       } catch { /* ignore */ }
     };
     ws.addEventListener('message', handleMessage);
     return () => ws.removeEventListener('message', handleMessage);
-  }, [ws, chatId]);
+  }, [ws, chatId, currentUser.user_id]);
 
   const handleSend = async (text) => {
-    await messagesAPI.send(chatId, text);
+    await messagesAPI.send(chatId, text, replyTo?.message_id);
+    setReplyTo(null);
   };
 
   const handleImageSend = async (fileId, text) => {
     await imagesAPI.sendImageMessage(chatId, fileId, text);
   };
 
-  const handleMessageRead = async (messageId) => {
-    try {
-      await messagesAPI.markRead(messageId);
-      setMessages((prev) =>
-        prev.map((m) => m.message_id === messageId ? { ...m, is_read: true } : m)
-      );
-    } catch { /* ignore */ }
+  const handleReact = async (msgId, emoji) => {
+    await messagesAPI.react(msgId, emoji);
   };
 
   const fetchReaders = async (msgId) => {
-    if (messageReaders[msgId]) return;
-    try {
-      const res = await messagesAPI.getReaders(msgId);
-      setMessageReaders(prev => ({ ...prev, [msgId]: res.data || [] }));
-    } catch { /* ignore */ }
+    const res = await messagesAPI.getReaders(msgId);
+    setMessageReaders(prev => ({ ...prev, [msgId]: res.data }));
   };
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
-    // Maybe show a small toast later
-  };
-
-  const handleStar = (url) => {
-    const saved = JSON.parse(localStorage.getItem('chat_favorites') || '[]');
-    const exists = saved.find(f => f.url === url);
-    if (!exists) {
-      const updated = [{ id: Date.now().toString(), url, type: 'sticker' }, ...saved].slice(0, 50);
-      localStorage.setItem('chat_favorites', JSON.stringify(updated));
-      alert('Sticker added to favorites!');
-    }
   };
 
   const isOwnMessage = (msg) => msg.sender_id === currentUser.user_id;
@@ -117,74 +120,72 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
             <span className="chat-header-sub text-muted">{participants.length} members</span>
           </div>
         </div>
-        <div className="chat-header-actions">
-          {currentUser.role === 'admin' && (
-            <button className="btn btn-secondary" onClick={() => setShowAdminControls(true)}>🛡️</button>
-          )}
-          <button className="btn btn-secondary" onClick={() => setShowUserSidebar(true)}>👥</button>
-        </div>
       </div>
 
-      <div className="chat-messages">
+      <div className="chat-messages" onContextMenu={e => e.preventDefault()}>
         {loading ? (
           <div className="chat-loading"><div className="spinner" /></div>
         ) : (
           messages.map((msg) => (
             <div key={msg.message_id} className={`message-wrapper ${isOwnMessage(msg) ? 'own' : 'other'}`}>
               {!isOwnMessage(msg) && (
-                <button 
-                  className="message-avatar"
-                  onClick={() => onStartPrivateChat(msg.sender_id)}
-                  title={`Chat with ${msg.sender_name}`}
-                >
+                <button className="message-avatar" onClick={() => onStartPrivateChat(msg.sender_id)}>
                   {msg.sender_name?.[0]?.toUpperCase()}
                 </button>
               )}
-              <div className={`message-bubble ${isOwnMessage(msg) ? 'message-own' : 'message-other'}`}>
+              <div 
+                className={`message-bubble ${isOwnMessage(msg) ? 'message-own' : 'message-other'}`}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.pageX, y: e.pageY, msg });
+                }}
+              >
                 {!isOwnMessage(msg) && (
-                  <span className="message-sender" onClick={() => onStartPrivateChat(msg.sender_id)} style={{cursor: 'pointer'}}>
+                  <span className="message-sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
                     {msg.sender_name}
                   </span>
                 )}
-                
-                <div className="message-content-wrapper">
-                  {msg.image_file_id ? (
-                    <div className="media-container">
-                      <MediaMessage
-                        fileId={msg.image_file_id}
-                        onOpen={(url) => setSelectedImage(url)}
-                      />
-                      <button className="media-star-btn" onClick={() => handleStar(imagesAPI.getUrl(msg.image_file_id))} title="Save to Favorites">⭐</button>
-                    </div>
-                  ) : /^http.*\.(jpg|jpeg|gif|png|webp)(\?.*)?$/i.test(msg.message_text) ? (
-                    <div className="message-sticker media-container">
-                      <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker-content" />
-                      <button className="media-star-btn" onClick={() => handleStar(msg.message_text)} title="Save to Favorites">⭐</button>
-                    </div>
-                  ) : (
-                    <p className="message-text">{msg.message_text}</p>
-                  )}
-                  
-                  <div className="message-actions-overlay">
-                    <button className="mini-action-btn" onClick={() => handleCopy(msg.message_text || '')} title="Copy">📋</button>
+
+                {/* Reply Quote Preview */}
+                {msg.parent_id && (
+                  <div className="reply-quote-bubble">
+                    <span className="reply-quote-sender">{msg.parent_sender}</span>
+                    <p className="reply-quote-text">{msg.parent_text}</p>
                   </div>
-                </div>
+                )}
+                
+                {msg.image_file_id ? (
+                  <MediaMessage fileId={msg.image_file_id} onOpen={(url) => setSelectedImage(url)} />
+                ) : /^http.*\.(jpg|jpeg|gif|png|webp)(\?.*)?$/i.test(msg.message_text) ? (
+                  <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker-content" />
+                ) : (
+                  <p className="message-text">{msg.message_text}</p>
+                )}
+
+                <button className="msg-more-btn" onClick={(e) => {
+                  e.stopPropagation();
+                  setContextMenu({ x: e.pageX, y: e.pageY, msg });
+                }}>···</button>
+
+                {/* Reactions List */}
+                {msg.reactions?.length > 0 && (
+                  <div className="message-reactions-list">
+                    {msg.reactions.map(r => (
+                      <button 
+                        key={r.emoji} 
+                        className={`reaction-pill ${r.me ? 'me' : ''}`}
+                        onClick={() => handleReact(msg.message_id, r.emoji)}
+                      >
+                        {r.emoji} {r.count}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="message-meta">
                   <span className="message-time">
                     {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  
-                  {/* Teams Style Seen By */}
-                  <div className="seen-by-container" onClick={() => fetchReaders(msg.message_id)}>
-                    {isOwnMessage(msg) && (
-                      <span className="seen-by-text">
-                        {messageReaders[msg.message_id] ? (
-                          `Seen by ${messageReaders[msg.message_id].slice(0, 2).join(', ')}${messageReaders[msg.message_id].length > 2 ? ` +${messageReaders[msg.message_id].length - 2}` : ''}`
-                        ) : 'Seen by...'}
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
@@ -193,52 +194,112 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Reply Bar */}
+      {replyTo && (
+        <div className="reply-bar">
+          <div className="reply-bar-info">
+            <span className="reply-bar-sender">Replying to {replyTo.sender_name}</span>
+            <p className="reply-bar-text">{replyTo.message_text}</p>
+          </div>
+          <button className="reply-bar-close" onClick={() => setReplyTo(null)}>✕</button>
+        </div>
+      )}
+
       <MessageInput onSend={handleSend} onImageSend={handleImageSend} disabled={!wsReady} chatId={chatId} />
 
+      {/* Teams Style Context Menu */}
+      {contextMenu && (
+        <div className="teams-menu" style={{ top: Math.min(contextMenu.y, window.innerHeight - 300), left: Math.min(contextMenu.x, window.innerWidth - 220) }} onClick={e => e.stopPropagation()}>
+          <div className="teams-reactions-bar">
+             {['👍', '❤️', '😂', '😮', '😢', '🔥'].map(emoji => (
+               <button key={emoji} className="teams-react-btn" onClick={() => { handleReact(contextMenu.msg.message_id, emoji); setContextMenu(null); }}>{emoji}</button>
+             ))}
+          </div>
+          <div className="teams-menu-list">
+            <button className="teams-menu-item" onClick={() => { setReplyTo(contextMenu.msg); setContextMenu(null); }}>
+              <span className="menu-icon">↩️</span> Reply
+            </button>
+            <button className="teams-menu-item" onClick={() => { handleCopy(contextMenu.msg.message_text); setContextMenu(null); }}>
+              <span className="menu-icon">📋</span> Copy text
+            </button>
+            <div className="teams-menu-divider" />
+            <button className="teams-menu-item" onClick={() => { fetchReaders(contextMenu.msg.message_id); }}>
+              <span className="menu-icon">👁️</span> 
+              Read by {messageReaders[contextMenu.msg.message_id]?.length || 0} participants
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedImage && <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />}
-      {showAdminControls && <AdminControls participants={participants} onClose={() => setShowAdminControls(false)} onRefresh={loadData} />}
-      {showUserSidebar && <UserSidebar participants={participants} highlightUserId={selectedUser?.sender_id} onClose={() => { setShowUserSidebar(false); setSelectedUser(null); }} />}
 
       <style jsx>{`
-        .main-chat { display: flex; flex-direction: column; height: 100%; background: var(--bg-primary); }
-        .chat-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
-        .chat-header-info { display: flex; align-items: center; gap: 12px; }
+        .main-chat { display: flex; flex-direction: column; height: 100%; background: var(--bg-primary); position: relative; }
+        .chat-header { padding: 14px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
         .chat-header-title { font-size: 1rem; font-weight: 700; margin: 0; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-        .message-wrapper { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 4px; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        
+        .message-wrapper { display: flex; align-items: flex-end; gap: 8px; }
         .message-wrapper.own { flex-direction: row-reverse; }
-        .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; }
-        .message-bubble { max-width: 70%; padding: 10px 14px; border-radius: 12px; position: relative; }
-        .message-own { background: #312e81; border-bottom-right-radius: 4px; }
-        .message-other { background: #1e1e2e; border-bottom-left-radius: 4px; }
-        .message-sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; display: block; margin-bottom: 4px; }
-        .message-text { font-size: 0.95rem; margin: 0; white-space: pre-wrap; line-height: 1.4; }
-        .message-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
-        .message-time { font-size: 0.7rem; color: #55556a; }
+        .message-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; border: none; font-weight: 700; cursor: pointer; }
         
-        .seen-by-text { font-size: 0.65rem; color: #7c6af7; cursor: pointer; transition: opacity 0.2s; }
-        .seen-by-text:hover { opacity: 0.8; }
-        
-        .media-container { position: relative; border-radius: 10px; overflow: hidden; margin-top: 4px; }
-        .sticker-content { max-width: 200px; max-height: 200px; display: block; cursor: pointer; }
-        
-        .media-star-btn { 
-          position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.6); 
-          border: none; color: white; width: 28px; height: 28px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;
+        .message-bubble { 
+          max-width: 70%; padding: 12px 16px; border-radius: 12px; position: relative; 
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
         }
-        .media-container:hover .media-star-btn { opacity: 1; }
+        .message-own { background: #3c3b54; color: white; border-bottom-right-radius: 4px; }
+        .message-other { background: #252433; color: white; border-bottom-left-radius: 4px; }
         
-        .message-content-wrapper { position: relative; }
-        .message-actions-overlay { 
-          position: absolute; right: -40px; top: 0; display: flex; flex-direction: column; 
-          gap: 4px; opacity: 0; transition: opacity 0.2s; 
+        .reply-quote-bubble { 
+          background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent); 
+          padding: 8px; border-radius: 4px; margin-bottom: 8px; cursor: default;
         }
-        .message-wrapper.own .message-actions-overlay { right: auto; left: -40px; }
-        .message-wrapper:hover .message-actions-overlay { opacity: 1; }
+        .reply-quote-sender { font-size: 0.7rem; font-weight: 700; color: var(--accent); }
+        .reply-quote-text { font-size: 0.8rem; margin: 2px 0 0; opacity: 0.8; word-break: break-all; }
         
-        .mini-action-btn { background: #252535; border: 1px solid #2e2e45; color: #8888aa; border-radius: 6px; padding: 4px; cursor: pointer; font-size: 0.8rem; }
-        .mini-action-btn:hover { background: #7c6af7; color: white; }
+        .message-sender { font-size: 0.75rem; font-weight: 700; color: var(--accent); cursor: pointer; margin-bottom: 4px; display: block; }
+        .message-text { font-size: 0.95rem; margin: 0; line-height: 1.4; word-break: break-word; }
+        .msg-more-btn { position: absolute; right: 4px; top: 4px; background: none; border: none; color: #8888aa; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+        .message-bubble:hover .msg-more-btn { opacity: 1; }
+        
+        .message-reactions-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .reaction-pill { 
+          background: #1a1a24; border: 1px solid #2e2e45; border-radius: 12px; 
+          padding: 2px 8px; font-size: 0.75rem; color: #8888aa; cursor: pointer; transition: all 0.2s;
+        }
+        .reaction-pill.me { border-color: var(--accent); background: rgba(124, 106, 247, 0.1); }
+        .reaction-pill:hover { transform: scale(1.1); }
+        
+        .message-meta { margin-top: 4px; text-align: right; }
+        .message-time { font-size: 0.65rem; color: #55556a; }
+        
+        .reply-bar { 
+          padding: 10px 20px; background: #252433; border-top: 1px solid #3c3b54; 
+          display: flex; align-items: center; justify-content: space-between;
+          border-left: 4px solid var(--accent); 
+        }
+        .reply-bar-sender { font-size: 0.75rem; font-weight: 700; color: var(--accent); }
+        .reply-bar-text { font-size: 0.85rem; margin: 2px 0 0; color: #8888aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .reply-bar-close { background: none; border: none; color: white; cursor: pointer; }
+
+        .teams-menu { 
+          position: fixed; background: #252433; border: 1px solid #3c3b54; 
+          min-width: 200px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); 
+          z-index: 10000; overflow: hidden;
+        }
+        .teams-reactions-bar { display: flex; padding: 10px; gap: 8px; background: #1a1a24; border-bottom: 1px solid #3c3b54; }
+        .teams-react-btn { font-size: 1.2rem; background: none; border: none; cursor: pointer; transition: transform 0.2s; }
+        .teams-react-btn:hover { transform: scale(1.3); }
+        .teams-menu-list { display: flex; flex-direction: column; padding: 6px 0; }
+        .teams-menu-item { 
+          border: none; background: none; padding: 8px 16px; text-align: left; 
+          color: white; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        }
+        .teams-menu-item:hover { background: #3c3b54; }
+        .teams-menu-divider { height: 1px; background: #3c3b54; margin: 6px 0; }
+        .menu-icon { font-size: 1rem; }
+
+        .sticker-content { max-width: 250px; border-radius: 8px; cursor: pointer; }
       `}</style>
     </div>
   );
