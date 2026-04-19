@@ -1,12 +1,14 @@
 'use client';
 
 export default function MediaMessage({ fileId, width, height, onOpen }) {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const rawApiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const apiBase = rawApiBase.endsWith('/') ? rawApiBase.slice(0, -1) : rawApiBase;
   
   // Construct the correct source URL
   let src = fileId;
   if (fileId && !fileId.startsWith('http')) {
-    src = `${apiBase}${fileId.startsWith('/uploads/') ? '' : '/uploads/'}${fileId}`;
+    const cleanFileId = fileId.startsWith('/uploads/') ? fileId.substring(9) : (fileId.startsWith('uploads/') ? fileId.substring(8) : fileId);
+    src = `${apiBase}/uploads/${cleanFileId.startsWith('/') ? cleanFileId.substring(1) : cleanFileId}`;
   }
   
   const aspectRatio = width && height ? `${width}/${height}` : 'auto';
