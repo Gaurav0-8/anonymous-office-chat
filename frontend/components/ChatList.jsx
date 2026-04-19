@@ -32,7 +32,7 @@ export default function ChatList({ currentUser, activeChatId, onChatSelect, ws }
     const wsHandler = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === 'new_message') loadChats();
+        if (data.type === 'new_message' || data.type === 'new_chat') loadChats();
       } catch {}
     };
     ws.addEventListener('message', wsHandler);

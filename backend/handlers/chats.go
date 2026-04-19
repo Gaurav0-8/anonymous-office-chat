@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"path/filepath"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gaurav/chat-app/db"
 	mw "github.com/gaurav/chat-app/middleware"
+	"github.com/gaurav/chat-app/ws"
 )
 
 func SetupChatRoutes(app *fiber.App) {
@@ -37,7 +39,7 @@ func getMainChat(c *fiber.Ctx) error {
 func createPrivateChat(c *fiber.Ctx) error {
 	userID, _, _, _ := mw.GetCurrentUser(c)
 	var req struct { TargetUserID int `json:"target_user_id"` }
-	_ = c.BodyParser(&req)
+	if err := c.BodyParser(&req); err != nil { return err }
 
 	var chatID int
 	err := db.DB.QueryRow(`
@@ -51,9 +53,24 @@ func createPrivateChat(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"chat_id": chatID})
 	}
 
-	res, _ := db.DB.Exec("INSERT INTO chats (chat_type) VALUES ('private')")
+	tx, err := db.DB.Begin()
+	if err != nil { return err }
+
+	res, err := tx.Exec("INSERT INTO chats (chat_type) VALUES ('private')")
+	if err != nil { tx.Rollback(); return err }
+	
 	newChatID, _ := res.LastInsertId()
-	_, _ = db.DB.Exec("INSERT INTO chat_participants (chat_id, user_id) VALUES (?, ?), (?, ?)", newChatID, userID, newChatID, req.TargetUserID)
+	_, err = tx.Exec("INSERT INTO chat_participants (chat_id, user_id) VALUES (?, ?), (?, ?)", newChatID, userID, newChatID, req.TargetUserID)
+	if err != nil { tx.Rollback(); return err }
+
+	if err := tx.Commit(); err != nil { return err }
+
+	// Notify both participants via WebSocket so sidebars update instantly
+	ws.Hub.BroadcastToUsers(fiber.Map{
+		"type":    "new_chat",
+		"chat_id": newChatID,
+	}, []int{userID, req.TargetUserID})
+
 	return c.JSON(fiber.Map{"chat_id": newChatID})
 }
 
