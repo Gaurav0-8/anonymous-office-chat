@@ -63,16 +63,24 @@ export default function InstallPrompt() {
   }, [deferredPrompt]);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
-        console.log('[PWA] Manual install instructions');
+    if (isIOS) {
+        alert("📱 To install on iOS:\n1. Tap the Share button at the bottom\n2. Scroll down and tap 'Add to Home Screen'");
+        handleDismiss();
         return;
     }
+    if (!deferredPrompt) {
+        alert("💻 To install natively:\nPlease look for the Install icon (looks like a monitor with an arrow) in your browser's address bar up top!");
+        handleDismiss();
+        return;
+    }
+    
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
         setIsInstalled(true);
-        setShowPrompt(false);
     }
+    // We intentionally dismiss either way
+    handleDismiss();
     setDeferredPrompt(null);
   };
 
@@ -89,23 +97,13 @@ export default function InstallPrompt() {
         <div className="install-icon">📲</div>
         <h3 className="install-title">Install ChatApp</h3>
         <p className="install-desc">
-          {isIOS
-            ? 'Tap the share button in Safari, then "Add to Home Screen" to install.'
-            : 'Get the best experience on your heart or desktop — fast and native-feeling.'}
+          Add ChatApp to your Home Screen for the best, lightning-fast native experience.
         </p>
 
         <div className="install-actions">
-          {!isIOS && deferredPrompt && (
-            <button className="install-btn primary" onClick={handleInstall}>Install Now</button>
-          )}
+          <button className="install-btn primary" onClick={handleInstall}>Install Now</button>
           <button className="install-btn secondary" onClick={handleDismiss}>Not Now</button>
         </div>
-
-        {(!isIOS && !deferredPrompt) && (
-          <div className="manual-hint">
-             💡 Look for the <strong>Install Icon</strong> in your browser address bar to add to PC.
-          </div>
-        )}
       </div>
 
       <style jsx>{`
