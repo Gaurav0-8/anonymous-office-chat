@@ -29,6 +29,8 @@ export const authAPI = {
   register: (d) => api.post('/auth/register', d),
   googleLogin: (d) => api.post('/auth/google', d),
   getMe: () => api.get('/auth/me'),
+  getDisplayNames: () => api.get('/auth/display-names'),
+  setName: (d) => api.post('/auth/set-name', d),
 };
 
 export const chatsAPI = {
