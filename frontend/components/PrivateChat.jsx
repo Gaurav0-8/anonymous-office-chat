@@ -75,10 +75,12 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
           ←
         </button>
         <div className="chat-header-avatar">
-          {otherParticipant?.display_name?.[0]?.toUpperCase() || '?'}
+          {otherParticipant?.display_name?.[0]?.toUpperCase() || '...'}
         </div>
         <div>
-          <h2 className="chat-header-title">{otherParticipant?.display_name || 'Private Chat'}</h2>
+          <h2 className="chat-header-title">
+            {otherParticipant?.display_name || (loading ? 'Loading...' : 'Private Chat')}
+          </h2>
           <span className="chat-header-sub text-muted">Private conversation</span>
         </div>
       </div>
@@ -148,6 +150,7 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
           display: flex; align-items: center; gap: 12px;
           padding: max(14px, env(safe-area-inset-top)) 20px 14px 20px; 
           background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+          position: sticky; top: 0; z-index: 100;
         }
         .back-btn {
           background: none; border: none; cursor: pointer; font-size: 1.2rem;
