@@ -109,7 +109,10 @@ export default function ChatPage() {
                 const currentChatId = activeChatIdRef.current;
                 const currentUser = userRef.current;
                 
-                if (data.message?.chat_id !== currentChatId && data.message?.sender_id !== currentUser?.user_id) {
+                // Only toast if: (Not current room) AND (Not main chat ID 1) AND (Not self)
+                if (data.message?.chat_id !== currentChatId && 
+                    data.message?.chat_id !== 1 && 
+                    data.message?.sender_id !== currentUser?.user_id) {
                     setToast({
                         name: data.message.sender_name,
                         text: data.message.message_text,
