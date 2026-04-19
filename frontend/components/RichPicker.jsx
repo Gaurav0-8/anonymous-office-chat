@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
-const TENOR_API_KEY = 'LIVDSRZULEUB'; // Common public demo key or use a placeholder
 const TENOR_API_KEY = 'LIVDSRZULEUB';
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect, onClose }) {
