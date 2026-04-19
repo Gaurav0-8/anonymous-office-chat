@@ -45,8 +45,9 @@ export default function ChatPage() {
   }, [activeChatId, activeChatType]);
 
   const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
 
-  // WebSocket connection with Auto-Reconnect
+  // WebSocket connection with Smart Reconnect (Exponential Backoff)
   const connectWS = useCallback(() => {
     if (!user) return;
     const token = localStorage.getItem('token');
@@ -58,6 +59,7 @@ export default function ChatPage() {
 
     ws.onopen = () => {
       setWsReady(true);
+      reconnectAttemptsRef.current = 0; // Reset attempts on success
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -66,10 +68,14 @@ export default function ChatPage() {
 
     ws.onclose = () => {
       setWsReady(false);
-      // Try to reconnect every 3 seconds if disconnected
-      if (!reconnectTimeoutRef.current) {
-        reconnectTimeoutRef.current = setTimeout(connectWS, 3000);
-      }
+      // Smart Reconnect: Wait longer each time (3s, 6s, 12s... up to 60s)
+      const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current), 60000);
+      
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectAttemptsRef.current++;
+        connectWS();
+      }, delay);
     };
 
     ws.onerror = () => ws.close();
