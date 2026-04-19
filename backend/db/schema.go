@@ -4,49 +4,33 @@ import (
 	"database/sql"
 	"log"
 	"os"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
 
 var DB *sql.DB
 
-// InitDB matches the calling convention in main.go
 func InitDB() error {
 	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "./chat.db"
-	}
+	if dbPath == "" { dbPath = "./chat.db" }
 
 	var err error
 	DB, err = sql.Open("sqlite", dbPath)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
-	if err = DB.Ping(); err != nil {
-		return err
-	}
+	if err = DB.Ping(); err != nil { return err }
 
-	if err := createTables(); err != nil {
-		return err
-	}
+	if err := createTables(); err != nil { return err }
 
-	if err := SeedMainChat(); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
+	return err
 }
 
 func CloseDB() {
-	if DB != nil {
-		DB.Close()
-	}
+	if DB != nil { DB.Close() }
 }
 
 func DeleteOldMessages() error {
-	// Deletes messages older than 30 minutes (anonymous spirit)
 	_, err := DB.Exec("DELETE FROM messages WHERE sent_at < datetime('now', '-30 minutes')")
 	return err
 }
@@ -55,10 +39,14 @@ func createTables() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS users (
 		user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT UNIQUE,
+		password_hash TEXT,
 		google_id TEXT UNIQUE,
 		display_name TEXT NOT NULL,
-		email TEXT UNIQUE,
+		email TEXT,
 		avatar_url TEXT,
+		role TEXT DEFAULT 'user',
+		last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -105,32 +93,18 @@ func createTables() error {
 		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(message_id, user_id)
 	);
-
-	CREATE TABLE IF NOT EXISTS image_files (
-		file_id TEXT PRIMARY KEY,
-		file_path TEXT NOT NULL,
-		file_name TEXT NOT NULL,
-		mime_type TEXT NOT NULL,
-		size_bytes INTEGER NOT NULL,
-		width INTEGER,
-		height INTEGER,
-		uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
 	`
 	_, err := DB.Exec(schema)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
-	// Force migrations
+	// Migrations
+	DB.Exec("ALTER TABLE users ADD COLUMN username TEXT UNIQUE")
+	DB.Exec("ALTER TABLE users ADD COLUMN password_hash TEXT")
+	DB.Exec("ALTER TABLE users ADD COLUMN last_seen DATETIME")
+	DB.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+	
 	DB.Exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN deleted_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL")
-	
 	return nil
-}
-
-func SeedMainChat() error {
-	_, err := DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
-	return err
 }
