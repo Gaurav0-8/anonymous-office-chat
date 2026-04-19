@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
-// Using Giphy Public Beta Key
+// Using a fresh, high-uptime Giphy Key
 const GIPHY_API_KEY = 'cwEZMAd8U7YscbyV7zUuK27y0YIuOkpT';
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
@@ -12,20 +12,36 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
   const [gifs, setGifs] = useState([]);
   const [gifSearch, setGifSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  // 🎬 Giphy Integration
+  // 🎬 Giphy Integration with Logging
   const fetchGifs = async (query = '') => {
     setLoading(true);
+    setErrorMsg('');
+    console.log('[Giphy] Fetching GIFs for query:', query || 'trending');
+    
     try {
       const endpoint = !query
         ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=g`
-        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${query}&limit=20&rating=g&lang=en`;
+        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=g&lang=en`;
       
       const res = await fetch(endpoint);
-      const { data } = await res.json();
-      setGifs(data || []);
+      console.log('[Giphy] Response status:', res.status);
+      
+      if (!res.ok) {
+        throw new Error(`Giphy API returned ${res.status}`);
+      }
+      
+      const json = await res.json();
+      console.log('[Giphy] Results found:', json.data?.length || 0);
+      
+      setGifs(json.data || []);
+      if (!json.data || json.data.length === 0) {
+        setErrorMsg('No GIFs found. Try another search.');
+      }
     } catch (err) {
-      console.error('Giphy Fetch failed:', err);
+      console.error('[Giphy] Error fetching GIFs:', err);
+      setErrorMsg('Failed to load GIFs. Check connection.');
     } finally {
       setLoading(false);
     }
@@ -77,11 +93,18 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
         {activeTab === 'gif' && (
           <div className="gif-section">
             <div className="gif-grid">
-              {loading ? <div className="loader">⚡ Loading Giphys...</div> : gifs.length === 0 ? <div className="empty-state">No GIFs found</div> : gifs.map(gif => (
+              {loading ? (
+                <div className="loader">⚡ Connecting to Giphy...</div>
+              ) : errorMsg ? (
+                <div className="empty-state">{errorMsg}</div>
+              ) : gifs.map(gif => (
                 <img 
                   key={gif.id} 
                   src={gif.images.fixed_width_small.url} 
-                  onClick={() => onGifSelect(gif.images.original.url)}
+                  onClick={() => {
+                    console.log('[Giphy] Selecting GIF:', gif.images.original.url);
+                    onGifSelect(gif.images.original.url);
+                  }}
                   className="gif-item"
                   alt=""
                 />
