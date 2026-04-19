@@ -15,6 +15,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [replyTo, setReplyTo] = useState(null);
   const [contextMsgId, setContextMsgId] = useState(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState('top'); 
   const [forwardMsg, setForwardMsg] = useState(null);
   const [userList, setUserList] = useState([]);
   const [focusTrigger, setFocusTrigger] = useState(0);
@@ -179,10 +180,29 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
             >              
               <div 
                 className="bubble-wrapper"
-                onContextMenu={(e) => { e.preventDefault(); setContextMsgId(msg.message_id); }}
-                onMouseDown={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 600); }}
+                onContextMenu={(e) => { 
+                  e.preventDefault(); 
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setMenuPosition(rect.top < 220 ? 'bottom' : 'top');
+                  setContextMsgId(msg.message_id); 
+                }}
+                onMouseDown={(e) => { 
+                  const target = e.currentTarget;
+                  longPressTimer.current = setTimeout(() => {
+                    const rect = target.getBoundingClientRect();
+                    setMenuPosition(rect.top < 220 ? 'bottom' : 'top');
+                    setContextMsgId(msg.message_id);
+                  }, 600); 
+                }}
                 onMouseUp={() => clearTimeout(longPressTimer.current)}
-                onTouchStart={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 600); }}
+                onTouchStart={(e) => { 
+                  const target = e.currentTarget;
+                  longPressTimer.current = setTimeout(() => {
+                    const rect = target.getBoundingClientRect();
+                    setMenuPosition(rect.top < 220 ? 'bottom' : 'top');
+                    setContextMsgId(msg.message_id);
+                  }, 600); 
+                }}
                 onTouchEnd={() => clearTimeout(longPressTimer.current)}
               >
                 {!isOwnMessage(msg) && (
@@ -228,7 +248,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                   )}
 
                   {contextMsgId === msg.message_id && (
-                    <div className="insta-menu">
+                    <div className={`insta-menu ${menuPosition}`}>
                         <div className="insta-reaction-row">
                             {['❤️', '🙌', '🔥', '😂', '😮', '😢'].map(e => (
                                 <button key={e} onClick={() => handleReact(msg.message_id, e)} className="insta-react-btn">{e}</button>
@@ -241,9 +261,9 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                             )}
                         </div>
                         <div className="insta-action-list">
-                            <button onClick={() => { setReplyTo(msg); setContextMsgId(null); setFocusTrigger(f => f + 1); }}>↩️ Reply</button>
-                            <button onClick={() => { setForwardMsg(msg); setContextMsgId(null); }}>➡️ Forward</button>
-                            <button onClick={() => { navigator.clipboard.writeText(msg.message_text); setContextMsgId(null); }}>📋 Copy</button>
+                            <button onClick={() => { setReplyTo(msg); setContextMsgId(null); setFocusTrigger(f => f + 1); }}>Reply</button>
+                            <button onClick={() => { setForwardMsg(msg); setContextMsgId(null); }}>Forward</button>
+                            <button onClick={() => { navigator.clipboard.writeText(msg.message_text); setContextMsgId(null); }}>Copy</button>
                         </div>
                     </div>
                   )}
@@ -308,16 +328,20 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         
         .msg-row.highlight { opacity: 0.7; transform: scale(0.98); }
         
-        .insta-menu { position: absolute; bottom: calc(100% + 10px); z-index: 1000; background: #1c1c28; border-radius: 18px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.2s ease-out; min-width: 220px; }
+        .insta-menu { position: absolute; z-index: 10000; background: #1c1c28; border-radius: 18px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.2s ease-out; min-width: 180px; }
+        .insta-menu.top { bottom: calc(100% + 10px); }
+        .insta-menu.bottom { top: calc(100% + 10px); }
+        
         .msg-row.own .insta-menu { right: 0; }
         .msg-row.other .insta-menu { left: 0; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
         
-        .insta-reaction-row { display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; justify-content: space-around; }
-        .insta-react-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; }
+        .insta-reaction-row { display: flex; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 4px; justify-content: space-around; }
+        .insta-react-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; transition: transform 0.2s; }
         .insta-react-btn:hover { transform: scale(1.3); }
-        .insta-action-list { display: flex; flex-direction: column; gap: 2px; }
-        .insta-action-list button { background: none; border: none; padding: 10px 14px; color: white; text-align: left; border-radius: 10px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; font-weight: 600; }
+        .insta-action-list { display: flex; flex-direction: column; gap: 0; }
+        .insta-action-list button { background: none; border: none; padding: 10px 14px; color: white; text-align: left; border-radius: 0; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; font-weight: 500; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .insta-action-list button:last-child { border-bottom: none; }
         .insta-action-list button:hover { background: rgba(255,255,255,0.05); color: #7c6af7; }
         
         .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
@@ -331,11 +355,18 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .spinner { width: 30px; height: 30px; border: 3px solid rgba(124,106,247,0.2); border-top: 3px solid #7c6af7; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        @media (min-width: 1024px) {
+          .bubble-wrapper { max-width: 65%; }
+          .bubble { padding: 8px 14px; font-size: 0.875rem; }
+          .title { font-size: 1.25rem; }
+          .subtitle { font-size: 0.8rem; }
+        }
+
         @media (max-width: 768px) {
           .chat-body { padding: 12px 10px; gap: 10px; }
           .bubble-wrapper { max-width: 92%; }
           .bubble { padding: 9px 12px; font-size: 0.9rem; }
-          .insta-menu { min-width: 180px; padding: 8px; font-size: 0.85rem; }
+          .insta-menu { min-width: 170px; padding: 8px; font-size: 0.85rem; }
           .insta-action-list button { padding: 8px 10px; font-size: 0.85rem; }
           .reactions-pill-container { gap: 3px; margin-top: 6px; }
           .pill { padding: 2px 6px; font-size: 0.65rem; }
