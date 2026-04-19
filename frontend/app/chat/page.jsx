@@ -27,6 +27,12 @@ export default function ChatPage() {
   const [wsReady, setWsReady] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Re-sync refs
+  const activeChatIdRef = useRef(activeChatId);
+  const userRef = useRef(user);
+  useEffect(() => { activeChatIdRef.current = activeChatId; }, [activeChatId]);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 4000);
@@ -86,12 +92,17 @@ export default function ChatPage() {
     ws.onmessage = (e) => {
         try {
             const data = JSON.parse(e.data);
-            if (data.type === 'new_message' && data.message?.chat_id !== activeChatId && data.message?.sender_id !== user.user_id) {
-                setToast({
-                    name: data.message.sender_name,
-                    text: data.message.message_text,
-                    chatId: data.message.chat_id
-                });
+            if (data.type === 'new_message') {
+                const currentChatId = activeChatIdRef.current;
+                const currentUser = userRef.current;
+                
+                if (data.message?.chat_id !== currentChatId && data.message?.sender_id !== currentUser?.user_id) {
+                    setToast({
+                        name: data.message.sender_name,
+                        text: data.message.message_text,
+                        chatId: data.message.chat_id
+                    });
+                }
             }
         } catch {}
     };
