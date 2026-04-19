@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var DB *sql.DB
@@ -12,7 +12,7 @@ var DB *sql.DB
 // InitDB initializes the SQLite database with the full Teams-style schema
 func InitDB(dataSourceName string) {
 	var err error
-	DB, err = sql.Open("sqlite3", dataSourceName)
+	DB, err = sql.Open("sqlite", dataSourceName)
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
@@ -43,7 +43,7 @@ func createTables() error {
 
 	CREATE TABLE IF NOT EXISTS chats (
 		chat_id INTEGER PRIMARY KEY AUTOINCREMENT,
-		chat_type TEXT NOT NULL, -- 'group' or 'private'
+		chat_type TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -63,6 +63,8 @@ func createTables() error {
 		sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		is_edited INTEGER DEFAULT 0,
 		is_deleted INTEGER DEFAULT 0,
+		edited_at DATETIME,
+		deleted_at DATETIME,
 		image_file_id TEXT,
 		parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL
 	);
@@ -90,7 +92,9 @@ func createTables() error {
 		return err
 	}
 
-	// Force migrations for existing databases
+	// Force migrations
+	DB.Exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME")
+	DB.Exec("ALTER TABLE messages ADD COLUMN deleted_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL")
 	DB.Exec(`
 		CREATE TABLE IF NOT EXISTS message_reactions (
