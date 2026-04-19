@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"path/filepath"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gaurav/chat-app/db"
