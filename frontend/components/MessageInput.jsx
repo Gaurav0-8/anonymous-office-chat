@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import { imagesAPI } from '@/lib/api';
 import { createPortal } from 'react-dom';
 import MediaPicker from './MediaPicker';
