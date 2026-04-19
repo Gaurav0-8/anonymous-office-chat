@@ -44,29 +44,57 @@ export default function ChatPage() {
     }
   }, [activeChatId, activeChatType]);
 
-  // WebSocket connection
-  useEffect(() => {
+  const reconnectTimeoutRef = useRef(null);
+
+  // WebSocket connection with Auto-Reconnect
+  const connectWS = useCallback(() => {
     if (!user) return;
     const token = localStorage.getItem('token');
-    // Dynamically use the current page's host — works on local, Cloudflare, any domain
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const fallbackUrl = `${protocol}//${window.location.host}/ws`;
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || fallbackUrl;
+    
     const ws = new WebSocket(`${wsUrl}?token=${token}`);
 
     ws.onopen = () => {
       setWsReady(true);
-      console.log('[WS] Connected');
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
     };
+
     ws.onclose = () => {
       setWsReady(false);
-      console.log('[WS] Disconnected');
+      // Try to reconnect every 3 seconds if disconnected
+      if (!reconnectTimeoutRef.current) {
+        reconnectTimeoutRef.current = setTimeout(connectWS, 3000);
+      }
     };
-    ws.onerror = (e) => console.error('[WS] Error:', e);
 
+    ws.onerror = () => ws.close();
     wsRef.current = ws;
-    return () => ws.close();
   }, [user]);
+
+  useEffect(() => {
+    connectWS();
+
+    // Recover connection when user returns to the tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          connectWS();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [connectWS]);
 
   const handleStartPrivateChat = async (targetUserId) => {
     try {
