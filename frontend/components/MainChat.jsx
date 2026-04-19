@@ -438,6 +438,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         }
 
         @media (max-width: 768px) {
+          .chat-header { display: none; }
           .chat-body { padding: 12px 10px; gap: 10px; }
           .bubble-wrapper { max-width: 92%; }
           .bubble { padding: 9px 12px; font-size: 0.9rem; }

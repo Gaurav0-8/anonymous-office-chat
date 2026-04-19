@@ -153,7 +153,7 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
           position: sticky; top: 0; z-index: 100;
         }
         @media (max-width: 768px) {
-          .chat-header { position: fixed; top: 0; left: 0; right: 0; }
+          .chat-header { display: none; }
           .chat-messages { margin-top: 60px; }
         }
         .back-btn {

@@ -248,11 +248,20 @@ export default function ChatPage() {
 
       <main className="chat-main">
         {/* Mobile header bar with hamburger */}
+        {/* Unified Mobile Header */}
         <div className="mobile-topbar">
-          <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            ☰
-          </button>
-          <span className="mobile-title">💬 ChatApp</span>
+          {activeChatType === 'private' ? (
+            <button className="hamburger-btn" onClick={() => handleChatSelect(1, 'group')}>
+              ←
+            </button>
+          ) : (
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              ☰
+            </button>
+          )}
+          <span className="mobile-title">
+            {activeChatType === 'group' ? '🛡️ Office Chat' : '💬 Private Chat'}
+          </span>
         </div>
         {activeChatType === 'group' ? (
           <MainChat
