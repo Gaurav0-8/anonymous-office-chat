@@ -87,7 +87,7 @@ export default function ChatPage() {
     ws.onmessage = (e) => {
         try {
             const data = JSON.parse(e.data);
-            if (data.type === 'new_message' && data.message?.chat_id !== activeChatId) {
+            if (data.type === 'new_message' && data.message?.chat_id !== activeChatId && data.message?.sender_id !== user.user_id) {
                 setToast({
                     name: data.message.sender_name,
                     text: data.message.message_text,
