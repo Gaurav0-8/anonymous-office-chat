@@ -12,9 +12,16 @@ export default function ChatPage() {
   const [user, setUser] = useState(null);
   const [activeChatId, setActiveChatId] = useState(1);
   const [activeChatType, setActiveChatType] = useState('group');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
+
+  // Auto-open sidebar on Desktop only
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth > 768) {
+      setSidebarOpen(true);
+    }
+  }, []);
 
   // Auth guard + Restore Persistence
   useEffect(() => {
