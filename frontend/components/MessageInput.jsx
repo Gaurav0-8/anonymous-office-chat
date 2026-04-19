@@ -132,6 +132,14 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
         @keyframes bounceUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .spinner-mini { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top: 2px solid white; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+          .message-input-area { padding: 10px 14px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+          .input-container { padding: 4px 10px; gap: 8px; border-radius: 20px; }
+          .main-input { font-size: 0.95rem; /* Prevents iOS auto-zoom */ }
+          .action-btn { font-size: 1.2rem; }
+          .send-btn { width: 30px; height: 30px; font-size: 0.8rem; }
+        }
       `}</style>
     </div>
   );

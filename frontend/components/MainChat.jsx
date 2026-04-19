@@ -329,6 +329,19 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
 
         .spinner { width: 30px; height: 30px; border: 3px solid rgba(124,106,247,0.2); border-top: 3px solid #7c6af7; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+          .chat-body { padding: 12px 10px; gap: 10px; }
+          .bubble-wrapper { max-width: 92%; }
+          .bubble { padding: 9px 12px; font-size: 0.9rem; }
+          .insta-menu { min-width: 180px; padding: 8px; font-size: 0.85rem; }
+          .insta-action-list button { padding: 8px 10px; font-size: 0.85rem; }
+          .reactions-pill-container { gap: 3px; margin-top: 6px; }
+          .pill { padding: 2px 6px; font-size: 0.65rem; }
+          .header-icon { width: 30px; height: 30px; font-size: 1.1rem; margin-right: 8px; }
+          .title { font-size: 1.1rem; }
+          .subtitle { font-size: 0.75rem; }
+        }
       `}</style>
     </div>
   );

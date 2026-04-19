@@ -146,7 +146,8 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
         .private-chat { display: flex; flex-direction: column; height: 100%; background: var(--bg-primary); }
         .chat-header {
           display: flex; align-items: center; gap: 12px;
-          padding: 14px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+          padding: max(14px, env(safe-area-inset-top)) 20px 14px 20px; 
+          background: var(--bg-secondary); border-bottom: 1px solid var(--border);
         }
         .back-btn {
           background: none; border: none; cursor: pointer; font-size: 1.2rem;
@@ -173,7 +174,11 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
         .message-bubble {
           max-width: min(65%, 520px); padding: 10px 14px; border-radius: 16px;
         }
-        @media (max-width: 768px) { .message-bubble { max-width: 85%; } }
+        @media (max-width: 768px) { 
+          .message-bubble { max-width: 92%; padding: 9px 12px; font-size: 0.9rem; }
+          .chat-messages { padding: 12px 10px; gap: 10px; }
+          .chat-header { padding: max(10px, env(safe-area-inset-top)) 14px 10px 10px; gap: 8px; }
+        }
         .message-own { background: var(--message-own); border-bottom-right-radius: 4px; }
         .message-other { background: var(--message-other); border-bottom-left-radius: 4px; }
         .message-text { font-size: 0.9rem; line-height: 1.5; word-break: break-word; margin: 0; }

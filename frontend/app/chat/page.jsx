@@ -164,7 +164,7 @@ export default function ChatPage() {
       <style jsx>{`
         .chat-layout {
           display: flex;
-          height: 100vh;
+          height: 100dvh;
           overflow: hidden;
           background: var(--bg-primary);
         }
@@ -225,13 +225,16 @@ export default function ChatPage() {
           }
           .mobile-topbar {
             display: flex; align-items: center; gap: 12px;
-            padding: 10px 16px; background: var(--bg-secondary);
+            padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left)); 
+            background: var(--bg-secondary);
             border-bottom: 1px solid var(--border); flex-shrink: 0;
+            z-index: 100;
           }
-          .mobile-title { flex: 1; font-weight: 700; font-size: 1rem; }
+          .mobile-title { flex: 1; font-weight: 700; font-size: 1.1rem; }
           .hamburger-btn {
-            background: none; border: none; font-size: 1.3rem;
+            background: none; border: none; font-size: 1.5rem;
             cursor: pointer; color: var(--text-primary); padding: 4px;
+            display: flex; align-items: center; justify-content: center;
           }
         }
         @media (min-width: 769px) {
