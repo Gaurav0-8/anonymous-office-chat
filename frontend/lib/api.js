@@ -38,6 +38,7 @@ export const chatsAPI = {
   getChatMessages: (id) => api.get(`/chats/${id}/messages`),
   getUserChats: () => api.get('/chats/my-chats'),
   getMyChats: () => api.get('/chats/my-chats'),
+  getChatDetails: (id) => api.get(`/chats/${id}/details`),
   createPrivateChat: (id) => api.post('/chats/private', { target_user_id: id }),
 };
 
