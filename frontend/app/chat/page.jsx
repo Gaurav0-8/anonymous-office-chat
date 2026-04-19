@@ -163,9 +163,30 @@ export default function ChatPage() {
     router.replace('/login');
   };
 
-  const handleChatSelect = (chatId, chatType) => {
-    setActiveChatId(chatId);
-    setActiveChatType(chatType);
+  // Handle hardware back button (Back Gesture on Mobile)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (activeChatType === 'private') {
+        // Switch back to group chat
+        setActiveChatId(1);
+        setActiveChatType('group');
+        // Push state to keep history length same (prevent app exit)
+        window.history.pushState(null, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeChatType]);
+
+  const handleChatSelect = (id, type) => {
+    setActiveChatId(id);
+    setActiveChatType(type);
+    
+    // On mobile, if switching to private, push state so 'back' works
+    if (type === 'private' && typeof window !== 'undefined') {
+        window.history.pushState({ internal: true }, '', window.location.pathname);
+    }
   };
 
   if (!user) {
