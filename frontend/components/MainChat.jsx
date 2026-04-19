@@ -11,9 +11,9 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [replyTo, setReplyTo] = useState(null);
+  const [replyTo, setReplyTo] = useState(null); // The message object being replied to
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
-  const [messageReaders, setMessageReaders] = useState({});
+  const [messageReaders, setMessageReaders] = useState({}); // { msgId: ["Name1", "Name2"] }
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -83,8 +83,13 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   }, [ws, chatId, currentUser.user_id]);
 
   const handleSend = async (text) => {
-    await messagesAPI.send(chatId, text, replyTo?.message_id);
-    setReplyTo(null);
+    try {
+      // Corrected: Passing message_id for reply support
+      await messagesAPI.send(chatId, text, replyTo ? parseInt(replyTo.message_id) : null);
+      setReplyTo(null);
+    } catch (err) {
+      console.error('Send failed:', err);
+    }
   };
 
   const handleImageSend = async (fileId, text) => {
@@ -110,86 +115,91 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const isOwnMessage = (msg) => msg.sender_id === currentUser.user_id;
 
   return (
-    <div className="main-chat">
+    <div className="teams-chat">
       <div className="chat-header">
         <div className="chat-header-info">
-          <span className="chat-header-icon">🌐</span>
+          <span className="group-avatar">🌐</span>
           <div>
-            <h2 className="chat-header-title">Main Group Chat</h2>
-            <span className="chat-header-sub text-muted">{participants.length} members</span>
+            <h2 className="title">Main Group Chat</h2>
+            <span className="subtitle">{participants.length} participants</span>
           </div>
         </div>
       </div>
 
-      <div className="chat-messages">
+      <div className="chat-body scrollable">
         {loading ? (
-          <div className="chat-loading"><div className="spinner" /></div>
+          <div className="centered"><div className="spinner" /></div>
         ) : (
           messages.map((msg) => (
             <div 
               key={msg.message_id} 
-              className={`message-wrapper ${isOwnMessage(msg) ? 'own' : 'other'}`}
+              className={`msg-row ${isOwnMessage(msg) ? 'own' : 'other'}`}
               onMouseEnter={() => { setHoveredMsgId(msg.message_id); fetchReaders(msg.message_id); }}
               onMouseLeave={() => setHoveredMsgId(null)}
             >
               {!isOwnMessage(msg) && (
-                <button className="message-avatar" onClick={() => onStartPrivateChat(msg.sender_id)}>
+                <button className="avatar" onClick={() => onStartPrivateChat(msg.sender_id)}>
                   {msg.sender_name?.[0]?.toUpperCase()}
                 </button>
               )}
               
-              <div className={`message-bubble-container`}>
-                <div className={`message-bubble ${isOwnMessage(msg) ? 'message-own' : 'message-other'}`}>
+              <div className="bubble-wrapper">
+                <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
                   {!isOwnMessage(msg) && (
-                    <span className="message-sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
+                    <span 1 className="sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
                       {msg.sender_name}
                     </span>
                   )}
 
+                  {/* Reply Quote Block */}
                   {msg.parent_id && (
-                    <div className="reply-quote-bubble">
-                      <span className="reply-quote-sender">{msg.parent_sender}</span>
-                      <p className="reply-quote-text">{msg.parent_text}</p>
+                    <div className="reply-quote-bar">
+                      <span className="quote-sender">{msg.parent_sender}</span>
+                      <p className="quote-text">{msg.parent_text}</p>
                     </div>
                   )}
                   
                   {msg.image_file_id ? (
                     <MediaMessage fileId={msg.image_file_id} onOpen={(url) => setSelectedImage(url)} />
                   ) : /^http.*\.(jpg|jpeg|gif|png|webp)(\?.*)?$/i.test(msg.message_text) ? (
-                    <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker-content" />
+                    <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker" />
                   ) : (
-                    <p className="message-text">{msg.message_text}</p>
+                    <p className="text">{msg.message_text}</p>
                   )}
 
+                  <div className="meta">
+                    <span className="time">
+                      {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+
+                  {/* Reaction Pills */}
                   {msg.reactions?.length > 0 && (
-                    <div className="message-reactions-list">
+                    <div className="reactions-pill-container">
                       {msg.reactions.map(r => (
-                        <button key={r.emoji} className={`reaction-pill ${r.me ? 'me' : ''}`} onClick={() => handleReact(msg.message_id, r.emoji)}>
+                        <button key={r.emoji} className={`pill ${r.me ? 'me' : ''}`} onClick={() => handleReact(msg.message_id, r.emoji)}>
                           {r.emoji} {r.count}
                         </button>
                       ))}
                     </div>
                   )}
 
-                  <div className="message-meta">
-                    <span className="message-time">
-                      {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  {/* HOVER MENU */}
-                  {hoveredMsgId === msg.message_id && (
-                    <div className="hover-menu">
-                       <button title="Reply" onClick={() => setReplyTo(msg)}>↩️</button>
-                       <button title="Copy" onClick={() => handleCopy(msg.message_text)}>📋</button>
-                       <button title="React" onClick={(e) => { e.stopPropagation(); /* show reaction picker or toggle thumb */ handleReact(msg.message_id, '👍'); }}>👍</button>
-                       {messageReaders[msg.message_id] && (
-                         <div className="seen-indicator" title={messageReaders[msg.message_id].join(', ')}>
-                           👁️ {messageReaders[msg.message_id].length}
-                         </div>
-                       )}
+                  {/* TEAMS STYLE HOVER ACTIONS */}
+                  <div className={`teams-hover-actions ${hoveredMsgId === msg.message_id ? 'visible' : ''}`}>
+                    <div className="emoji-row">
+                      {['👍', '❤️', '😂', '😮', '😢'].map(e => (
+                        <button key={e} onClick={() => handleReact(msg.message_id, e)}>{e}</button>
+                      ))}
                     </div>
-                  )}
+                    <div className="icon-row">
+                       <button title="Reply with Quote" onClick={() => setReplyTo(msg)}>↩️</button>
+                       <button title="Copy Text" onClick={() => handleCopy(msg.message_text)}>📋</button>
+                       <div className="divider" />
+                       <div className="seen-by" title={messageReaders[msg.message_id]?.join(', ') || 'No readers yet'}>
+                         👁️ {messageReaders[msg.message_id]?.length || 0}
+                       </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -199,12 +209,12 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
       </div>
 
       {replyTo && (
-        <div className="reply-bar">
-          <div className="reply-bar-info">
-            <span className="reply-bar-sender">Replying to {replyTo.sender_name}</span>
-            <p className="reply-bar-text">{replyTo.message_text}</p>
+        <div className="reply-preview">
+          <div className="preview-content">
+            <span className="preview-sender">Replying to {replyTo.sender_name}</span>
+            <p className="preview-text">{replyTo.message_text}</p>
           </div>
-          <button className="reply-bar-close" onClick={() => setReplyTo(null)}>✕</button>
+          <button className="preview-close" onClick={() => setReplyTo(null)}>✕</button>
         </div>
       )}
 
@@ -213,51 +223,77 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
       {selectedImage && <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />}
 
       <style jsx>{`
-        .main-chat { display: flex; flex-direction: column; height: 100%; background: var(--bg-primary); position: relative; }
-        .chat-header { padding: 14px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
-        .chat-header-title { font-size: 1rem; font-weight: 700; margin: 0; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-        .message-wrapper { display: flex; align-items: flex-end; gap: 8px; position: relative; }
-        .message-wrapper.own { flex-direction: row-reverse; }
-        .message-bubble-container { max-width: 70%; position: relative; }
-        .message-bubble { 
-          padding: 10px 14px; border-radius: 12px; position: relative; 
-          transition: background 0.2s;
-        }
-        .message-own { background: #3c3b54; color: white; border-bottom-right-radius: 4px; }
-        .message-other { background: #252433; color: white; border-bottom-left-radius: 4px; }
+        .teams-chat { display: flex; flex-direction: column; height: 100%; background: #111019; position: relative; }
+        .chat-header { padding: 12px 20px; background: #1a1926; border-bottom: 1px solid #2a293d; }
+        .chat-header-info { display: flex; align-items: center; gap: 12px; }
+        .group-avatar { font-size: 1.5rem; background: #2a293d; padding: 6px; border-radius: 8px; }
+        .title { font-size: 1rem; margin: 0; color: white; }
+        .subtitle { font-size: 0.75rem; color: #8888aa; }
         
-        /* HOVER MENU STYLES */
-        .hover-menu { 
-          position: absolute; top: -30px; right: 0; background: #252433; 
-          border: 1px solid #3c3b54; border-radius: 8px; display: flex; 
-          align-items: center; gap: 8px; padding: 4px 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          z-index: 100; animation: fadeIn 0.15s ease;
-        }
-        .message-wrapper.own .hover-menu { right: auto; left: 0; }
-        .hover-menu button { background: none; border: none; font-size: 0.9rem; cursor: pointer; padding: 2px; }
-        .hover-menu button:hover { transform: scale(1.2); }
-        .seen-indicator { font-size: 0.75rem; color: #8888aa; border-left: 1px solid #3c3b54; padding-left: 8px; cursor: help; }
+        .chat-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .msg-row { display: flex; align-items: flex-end; gap: 10px; position: relative; }
+        .msg-row.own { flex-direction: row-reverse; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: #7c6af7; color: white; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+        .bubble-wrapper { max-width: 65%; position: relative; }
+        
+        .bubble { 
+          padding: 10px 14px; border-radius: 8px; position: relative; 
+          box-shadow: 0 1px 2px rgba(0,0,0,0.2); 
+        }
+        .bubble.own { background: #323145; color: white; }
+        .bubble.other { background: #232231; color: white; }
+        
+        .sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; cursor: pointer; display: block; margin-bottom: 4px; }
+        .text { font-size: 0.95rem; margin: 0; line-height: 1.4; word-wrap: break-word; }
+        
+        .reply-quote-bar { 
+          background: rgba(0,0,0,0.2); border-left: 3px solid #7c6af7; 
+          padding: 8px; border-radius: 4px; margin-bottom: 8px; 
+        }
+        .quote-sender { font-size: 0.7rem; font-weight: 700; color: #7c6af7; display: block; }
+        .quote-text { font-size: 0.8rem; margin: 2px 0 0; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        .reply-quote-bubble { background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent); padding: 8px; border-radius: 4px; margin-bottom: 8px; }
-        .reply-quote-sender { font-size: 0.7rem; font-weight: 700; color: var(--accent); }
-        .reply-quote-text { font-size: 0.8rem; margin: 2px 0 0; opacity: 0.8; }
+        /* TEAMS HOVER PANEL */
+        .teams-hover-actions { 
+          position: absolute; top: -35px; right: 0; 
+          background: #1a1926; border: 1px solid #2a293d; 
+          border-radius: 8px; padding: 4px; display: flex; flex-direction: column;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.5); opacity: 0; pointer-events: none;
+          transition: all 0.2s; z-index: 1000;
+        }
+        .msg-row.own .teams-hover-actions { right: auto; left: 0; }
+        .teams-hover-actions.visible { opacity: 1; pointer-events: auto; top: -45px; }
         
-        .message-sender { font-size: 0.75rem; font-weight: 700; color: var(--accent); cursor: pointer; margin-bottom: 4px; display: block; }
-        .message-text { font-size: 0.95rem; margin: 0; line-height: 1.4; word-break: break-word; }
-        .message-reactions-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-        .reaction-pill { background: #1a1a24; border: 1px solid #2e2e45; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; color: #8888aa; cursor: pointer; }
-        .reaction-pill.me { border-color: var(--accent); background: rgba(124, 106, 247, 0.1); }
-        .message-meta { margin-top: 4px; text-align: right; }
-        .message-time { font-size: 0.65rem; color: #55556a; }
+        .emoji-row { display: flex; gap: 6px; padding: 4px; border-bottom: 1px solid #2a293d; }
+        .emoji-row button { background: none; border: none; font-size: 1.2rem; cursor: pointer; transition: transform 0.1s; }
+        .emoji-row button:hover { transform: scale(1.3); }
         
-        .reply-bar { padding: 10px 20px; background: #252433; border-top: 1px solid #3c3b54; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--accent); }
-        .reply-bar-sender { font-size: 0.75rem; font-weight: 700; color: var(--accent); }
-        .reply-bar-text { font-size: 0.85rem; margin: 2px 0 0; color: #8888aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .reply-bar-close { background: none; border: none; color: white; cursor: pointer; }
-        .sticker-content { max-width: 250px; border-radius: 8px; cursor: pointer; }
+        .icon-row { display: flex; align-items: center; gap: 10px; padding: 6px; }
+        .icon-row button { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.7; }
+        .icon-row button:hover { opacity: 1; }
+        .divider { width: 1px; height: 14px; background: #2a293d; }
+        .seen-by { font-size: 0.75rem; color: #8888aa; display: flex; align-items: center; gap: 4px; cursor: help; }
+
+        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .pill { background: #111019; border: 1px solid #2a293d; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; color: #8888aa; cursor: pointer; }
+        .pill.me { border-color: #7c6af7; background: rgba(124, 106, 247, 0.1); }
+        .meta { margin-top: 4px; text-align: right; }
+        .time { font-size: 0.65rem; color: #55556a; }
+
+        .reply-preview { 
+          background: #1a1926; border-left: 4px solid #7c6af7; 
+          padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;
+          border-top: 1px solid #2a293d;
+        }
+        .preview-sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; }
+        .preview-text { font-size: 0.85rem; color: #8888aa; margin: 2px 0 0; }
+        .preview-close { background: none; border: none; color: white; cursor: pointer; font-size: 1rem; }
+        
+        .sticker { max-width: 250px; border-radius: 8px; cursor: pointer; }
+        .centered { padding: 40px; text-align: center; }
+        .scrollable::-webkit-scrollbar { width: 6px; }
+        .scrollable::-webkit-scrollbar-thumb { background: #2a293d; border-radius: 3px; }
       `}</style>
     </div>
   );
