@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
-// Using a fresh, high-uptime Giphy Key
-const GIPHY_API_KEY = 'cwEZMAd8U7YscbyV7zUuK27y0YIuOkpT';
+// Using a fresh high-volume Giphy Key
+const GIPHY_API_KEY = '0UT9HBy9j9nrSAtCHp8UvFp6q7M6Q9YF';
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
   const [activeTab, setActiveTab] = useState('emoji');
