@@ -1,17 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import ThemeToggle from '@/components/ThemeToggle';
 
 export default function WelcomePage() {
   const router = useRouter();
 
   return (
     <div className="welcome-page">
-      <div className="welcome-theme-toggle">
-        <ThemeToggle />
-      </div>
-
       <div className="welcome-container">
         {/* Hero */}
         <div className="welcome-hero fade-in">
@@ -66,7 +61,6 @@ export default function WelcomePage() {
           background: radial-gradient(ellipse at top, rgba(124,106,247,0.15) 0%, transparent 60%), var(--bg-primary);
           padding: 24px;
         }
-        .welcome-theme-toggle { position: fixed; top: 20px; right: 20px; z-index: 10; }
         .welcome-container { max-width: 900px; width: 100%; text-align: center; }
         .welcome-hero { margin-bottom: 48px; }
         .welcome-icon {
