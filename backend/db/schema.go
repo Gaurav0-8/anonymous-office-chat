@@ -42,11 +42,6 @@ func CloseDB() {
 	}
 }
 
-func DeleteOldMessages() error {
-	_, err := DB.Exec("DELETE FROM messages WHERE sent_at < datetime('now', '-30 minutes')")
-	return err
-}
-
 func createTables() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS users (
@@ -87,9 +82,7 @@ func createTables() error {
 		edited_at DATETIME,
 		deleted_at DATETIME,
 		image_file_id TEXT,
-		parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL,
-		view_once INTEGER DEFAULT 0,
-		viewed_at DATETIME
+		parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL
 	);
 
 	CREATE TABLE IF NOT EXISTS message_reads (
@@ -144,8 +137,6 @@ func createTables() error {
 	DB.Exec("ALTER TABLE messages ADD COLUMN deleted_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN image_file_id TEXT")
 	DB.Exec("ALTER TABLE messages ADD COLUMN parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL")
-	DB.Exec("ALTER TABLE messages ADD COLUMN view_once INTEGER DEFAULT 0")
-	DB.Exec("ALTER TABLE messages ADD COLUMN viewed_at DATETIME")
 	
 	DB.Exec("ALTER TABLE image_files ADD COLUMN is_sticker INTEGER DEFAULT 0")
 	DB.Exec("ALTER TABLE image_files ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -25,7 +24,6 @@ func SetupImageRoutes(app *fiber.App) {
 	imgs.Post("/upload", uploadImage)
 	imgs.Get("/stickers", listStickers)
 	imgs.Post("/message", sendImageMessage)
-	imgs.Post("/:message_id/view", confirmViewOnce)
 }
 
 func uploadImage(c *fiber.Ctx) error {
@@ -70,7 +68,6 @@ func sendImageMessage(c *fiber.Ctx) error {
 		ChatID      int    `json:"chat_id"`
 		FileID      string `json:"file_id"`
 		MessageText string `json:"message_text"`
-		ViewOnce    bool   `json:"view_once"`
 	}
 	if err := c.BodyParser(&req); err != nil { return err }
 
@@ -81,12 +78,9 @@ func sendImageMessage(c *fiber.Ctx) error {
 		fileName = filepath.Base(fileName)
 	}
 
-	intViewOnce := 0
-	if req.ViewOnce { intViewOnce = 1 }
-
 	res, err := db.DB.Exec(
-		"INSERT INTO messages (chat_id, sender_id, message_text, image_file_id, view_once) VALUES (?, ?, ?, ?, ?)",
-		req.ChatID, userID, req.MessageText, req.FileID, intViewOnce,
+		"INSERT INTO messages (chat_id, sender_id, message_text, image_file_id) VALUES (?, ?, ?, ?)",
+		req.ChatID, userID, req.MessageText, req.FileID,
 	)
 	if err != nil { return err }
 	messageID, _ := res.LastInsertId()
@@ -114,30 +108,10 @@ func sendImageMessage(c *fiber.Ctx) error {
 			"image_url":     "/uploads/" + fileName,
 			"image_width":   imgWidth,
 			"image_height":  imgHeight,
-			"view_once":     req.ViewOnce,
 		},
 	}, pids)
 
 	return c.JSON(fiber.Map{"message_id": messageID})
-}
-
-func confirmViewOnce(c *fiber.Ctx) error {
-	msgID, _ := c.ParamsInt("message_id")
-	userID, _, _, _ := mw.GetCurrentUser(c)
-
-	// Check if message is view_once and sent to this user
-	var senderID int
-	var viewOnce int
-	err := db.DB.QueryRow("SELECT sender_id, view_once FROM messages WHERE message_id = ?", msgID).Scan(&senderID, &viewOnce)
-	if err != nil || viewOnce == 0 { return c.SendStatus(404) }
-
-	if senderID == userID {
-		// Sender viewing their own view_once doesn't kill it (optional behavior)
-	} else {
-		_, _ = db.DB.Exec("UPDATE messages SET viewed_at = CURRENT_TIMESTAMP WHERE message_id = ? AND viewed_at IS NULL", msgID)
-	}
-
-	return c.JSON(fiber.Map{"status": "ok"})
 }
 
 func listStickers(c *fiber.Ctx) error {

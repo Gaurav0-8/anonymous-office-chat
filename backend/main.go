@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"os"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -33,18 +32,6 @@ func main() {
 		uploadDir = "./uploads"
 	}
 	os.MkdirAll(uploadDir, 0755)
-
-	// Start background goroutine: deletes messages older than 30 minutes every 5 minutes
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		log.Println("[Main] Message cleanup goroutine started")
-		for range ticker.C {
-			if err := db.DeleteOldMessages(); err != nil {
-				log.Printf("[Cleanup] Error: %v", err)
-			}
-		}
-	}()
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
