@@ -370,7 +370,7 @@ export default function ChatPage() {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border); flex-shrink: 0;
             z-index: 100;
-            position: sticky; top: 0;
+            position: fixed; top: 0; left: 0; right: 0;
           }
           .mobile-title { flex: 1; font-weight: 700; font-size: 1.1rem; }
           .hamburger-btn {

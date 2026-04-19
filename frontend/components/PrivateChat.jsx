@@ -152,6 +152,10 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
           background: var(--bg-secondary); border-bottom: 1px solid var(--border);
           position: sticky; top: 0; z-index: 100;
         }
+        @media (max-width: 768px) {
+          .chat-header { position: fixed; top: 0; left: 0; right: 0; }
+          .chat-messages { margin-top: 60px; }
+        }
         .back-btn {
           background: none; border: none; cursor: pointer; font-size: 1.2rem;
           color: var(--text-secondary); padding: 4px 8px; border-radius: 6px;
