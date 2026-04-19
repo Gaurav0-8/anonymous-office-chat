@@ -17,7 +17,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
   const [forwardMsg, setForwardMsg] = useState(null);
   const [userList, setUserList] = useState([]);
-  const [messageReaders, setMessageReaders] = useState({});
   const [focusTrigger, setFocusTrigger] = useState(0);
   const messagesEndRef = useRef(null);
   const reactionPickerRef = useRef(null);
@@ -160,7 +159,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     <div className="teams-chat insta-vibe">
       <div className="chat-header">
         <div className="chat-header-info">
-          <span className="group-avatar">💬</span>
+          <span className="header-icon">🛡️</span>
           <div>
             <h2 className="title">Office Chat</h2>
             <span className="subtitle">{participants.length} Active Users</span>
@@ -180,18 +179,16 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
               <div 
                 className="bubble-wrapper"
                 onContextMenu={(e) => { e.preventDefault(); setContextMsgId(msg.message_id); }}
-                onMouseDown={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 650); }}
+                onMouseDown={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 600); }}
                 onMouseUp={() => clearTimeout(longPressTimer.current)}
-                onTouchStart={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 650); }}
+                onTouchStart={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 600); }}
                 onTouchEnd={() => clearTimeout(longPressTimer.current)}
               >
+                {!isOwnMessage(msg) && (
+                  <div className="other-sender-label">{msg.sender_name}</div>
+                )}
+                
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
-                  {!isOwnMessage(msg) && (
-                    <span className="sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
-                      {msg.sender_name}
-                    </span>
-                  )}
-
                   {msg.parent_id && (
                     <div className="reply-quote-bar">
                       <span className="quote-sender">{msg.parent_sender}</span>
@@ -261,7 +258,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
           <div className="forward-modal-overlay">
               <div className="forward-modal fade-in">
                   <div className="modal-header">
-                      <h3>Forward to...</h3>
+                      <h3>Forward to</h3>
                       <button onClick={() => setForwardMsg(null)}>✕</button>
                   </div>
                   <div className="user-list-scroll">
@@ -294,38 +291,44 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
       <style jsx>{`
         .teams-chat.insta-vibe { display: flex; flex-direction: column; height: 100%; background: #050510; position: relative; overflow: hidden; }
         .chat-header { padding: 16px 20px; background: rgba(10,10,20,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .group-avatar { font-size: 1.6rem; border-radius: 50%; background: #7c6af7; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-        .chat-body { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
-        .msg-row { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        .msg-row.highlight { opacity: 0.8; }
-        .bubble { padding: 12px 16px; border-radius: 22px; position: relative; }
+        .header-icon { font-size: 1.4rem; background: #7c6af7; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; margin-right: 12px; }
+        .chat-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+        
+        .msg-row { display: flex; flex-direction: column; width: 100%; }
+        .msg-row.own { align-items: flex-end; }
+        .msg-row.other { align-items: flex-start; }
+        
+        .bubble-wrapper { max-width: 80%; position: relative; }
+        .other-sender-label { font-size: 0.7rem; font-weight: 700; color: #7c6af7; margin-bottom: 4px; margin-left: 12px; }
+        
+        .bubble { padding: 10px 14px; border-radius: 18px; position: relative; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         .bubble.own { background: linear-gradient(135deg, #7c6af7, #a855f7); color: white; border-bottom-right-radius: 4px; }
         .bubble.other { background: #262635; color: white; border-bottom-left-radius: 4px; }
-        .sender { font-size: 0.75rem; font-weight: 700; color: #a855f7; margin-bottom: 4px; display: block; }
-        .insta-menu { position: absolute; bottom: calc(100% + 10px); left: 0; z-index: 1000; background: #1c1c28; border-radius: 18px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); min-width: 200px; }
-        .msg-row.own .insta-menu { left: auto; right: 0; }
+        
+        .msg-row.highlight { opacity: 0.7; transform: scale(0.98); }
+        
+        .insta-menu { position: absolute; bottom: calc(100% + 10px); z-index: 1000; background: #1c1c28; border-radius: 18px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.2s ease-out; min-width: 220px; }
+        .msg-row.own .insta-menu { right: 0; }
+        .msg-row.other .insta-menu { left: 0; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
         .insta-reaction-row { display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; justify-content: space-around; }
-        .insta-react-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 4px; }
+        .insta-react-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; }
         .insta-react-btn:hover { transform: scale(1.3); }
-        .insta-react-btn.plus { font-size: 1.1rem; color: #888; background: rgba(255,255,255,0.05); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-        .insta-action-list { display: flex; flex-direction: column; gap: 4px; }
+        .insta-action-list { display: flex; flex-direction: column; gap: 2px; }
         .insta-action-list button { background: none; border: none; padding: 10px 14px; color: white; text-align: left; border-radius: 10px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; font-weight: 600; }
         .insta-action-list button:hover { background: rgba(255,255,255,0.05); color: #7c6af7; }
-        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-        .pill { background: rgba(255,255,255,0.08); border: none; border-radius: 12px; padding: 4px 10px; font-size: 0.75rem; color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .pill.me { background: rgba(124, 106, 247, 0.3); border: 1px solid #7c6af7; }
-        .forward-modal-overlay { position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 20px; }
-        .forward-modal { background: #1a1926; border-radius: 20px; width: 100%; max-width: 360px; overflow: hidden; border: 1px solid #2a293d; }
-        .modal-header { padding: 16px 20px; border-bottom: 1px solid #2a293d; display: flex; justify-content: space-between; align-items: center; }
-        .user-list-scroll { max-height: 400px; overflow-y: auto; padding: 10px; }
-        .user-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; cursor: pointer; transition: background 0.2s; }
-        .user-avatar-small { width: 32px; height: 32px; border-radius: 50%; background: #7c6af7; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-        .user-item:hover { background: rgba(124,106,247,0.1); }
-        .send-forward-btn { margin-left: auto; background: #7c6af7; border: none; border-radius: 8px; color: white; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
-        .meta { margin-top: 6px; text-align: right; }
-        .time { font-size: 0.65rem; color: rgba(255,255,255,0.4); }
+        
+        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .pill { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 3px 8px; font-size: 0.7rem; color: #ccc; cursor: pointer; transition: all 0.2s; }
+        .pill.me { border-color: #7c6af7; background: rgba(124, 106, 247, 0.2); color: white; }
+        
+        .meta { margin-top: 4px; text-align: right; }
+        .time { font-size: 0.65rem; color: rgba(255,255,255,0.3); }
         .insta-full-picker { position: absolute; bottom: 100%; left: 0; z-index: 10001; }
+
+        .spinner { width: 30px; height: 30px; border: 3px solid rgba(124,106,247,0.2); border-top: 3px solid #7c6af7; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
