@@ -10,18 +10,18 @@ import ChatList from '@/components/ChatList';
 export default function ChatPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [activeChatId, setActiveChatId] = useState(1);
-  const [activeChatType, setActiveChatType] = useState('group');
-
-  // Load from localStorage as early as possible
-  useEffect(() => {
+  const [activeChatId, setActiveChatId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const savedId = localStorage.getItem('last-active-chat-id');
-      const savedType = localStorage.getItem('last-active-chat-type');
-      if (savedId) setActiveChatId(parseInt(savedId));
-      if (savedType) setActiveChatType(savedType);
+      return parseInt(localStorage.getItem('last-active-chat-id')) || 1;
     }
-  }, []);
+    return 1;
+  });
+  const [activeChatType, setActiveChatType] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('last-active-chat-type') || 'group';
+    }
+    return 'group';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
