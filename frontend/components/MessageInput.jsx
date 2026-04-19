@@ -9,7 +9,6 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
   const [showPicker, setShowPicker] = useState(false);
   const [pastedFile, setPastedFile] = useState(null);
   const [pastedPreview, setPastedPreview] = useState(null);
-  const [viewOnce, setViewOnce] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef(null);
   const pickerRef = useRef(null);
@@ -38,10 +37,10 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
             const formData = new FormData();
             formData.append('file', pastedFile);
             const res = await imagesAPI.upload(formData);
-            await onImageSend(res.data.file_id, text, viewOnce);
+            // Default to standard send (no vanish mode)
+            await onImageSend(res.data.file_id, text);
             setPastedFile(null);
             setPastedPreview(null);
-            setViewOnce(false);
             setText('');
         } catch (err) {
             console.error('Upload failed:', err);
@@ -78,17 +77,10 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
           <div className="pasted-media-preview-bar fade-in">
               <div className="preview-container">
                   <img src={pastedPreview} alt="Paste preview" />
-                  <button className="remove-pasted" onClick={() => { setPastedFile(null); setPastedPreview(null); setViewOnce(false); }}>✕</button>
+                  <button className="remove-pasted" onClick={() => { setPastedFile(null); setPastedPreview(null); }}>✕</button>
               </div>
-              <div className="preview-controls">
-                  <button 
-                    type="button"
-                    className={`toggle-view-once ${viewOnce ? 'active' : ''}`}
-                    onClick={() => setViewOnce(!viewOnce)}
-                  >
-                    {viewOnce ? '👁️ View Once' : '🖼️ Keep in Chat'}
-                  </button>
-                  <span className="hint">Choosing Vanish Mode?</span>
+              <div className="preview-metadata">
+                  <span>Image attached</span>
               </div>
           </div>
       )}
@@ -129,12 +121,8 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
         .preview-container { position: relative; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.1); }
         .preview-container img { width: 100%; height: 100%; object-fit: cover; }
         .remove-pasted { position: absolute; top: -2px; right: -2px; background: #ff4757; border: none; color: white; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+        .preview-metadata { font-size: 0.85rem; color: #888; font-weight: 600; }
         
-        .preview-controls { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-        .toggle-view-once { background: #262635; border: 1px solid rgba(255,255,255,0.1); color: #888; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; align-self: flex-start; }
-        .toggle-view-once.active { background: #7c6af7; color: white; border-color: #7c6af7; box-shadow: 0 4px 12px rgba(124, 106, 247, 0.3); }
-        .hint { font-size: 0.7rem; color: #555; margin-left: 8px; }
-
         .input-container { display: flex; align-items: center; gap: 10px; background: #1c1c28; border-radius: 26px; padding: 6px 14px; border: 1px solid rgba(255,255,255,0.05); }
         .main-input { flex: 1; background: none; border: none; color: white; padding: 10px 0; outline: none; font-size: 0.95rem; }
         .action-btn { background: none; border: none; font-size: 1.3rem; cursor: pointer; opacity: 0.7; }
@@ -142,6 +130,8 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
         .send-btn:disabled { background: #262635; color: #555; cursor: not-allowed; }
         .picker-popover { position: absolute; bottom: 65px; left: 20px; z-index: 2000; animation: bounceUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes bounceUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .spinner-mini { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top: 2px solid white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

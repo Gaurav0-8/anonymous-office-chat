@@ -111,9 +111,9 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     } catch (err) { console.error('Send failed:', err); }
   };
 
-  const handleImageSend = async (fileId, text, viewOnce = false) => {
+  const handleImageSend = async (fileId, text) => {
      try {
-       await imagesAPI.sendImageMessage(chatId, fileId, text, viewOnce);
+       await imagesAPI.sendImageMessage(chatId, fileId, text);
        setReplyTo(null);
      } catch (err) { console.error('Image send failed:', err); }
   };
@@ -145,7 +145,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         const res = await chatsAPI.createPrivateChat(targetUser.user_id);
         const targetChatId = res.data.chat_id;
         if (forwardMsg.image_file_id) {
-            await imagesAPI.sendImageMessage(targetChatId, forwardMsg.image_file_id, forwardMsg.message_text, forwardMsg.view_once);
+            await imagesAPI.sendImageMessage(targetChatId, forwardMsg.image_file_id, forwardMsg.message_text);
         } else {
             await messagesAPI.send(targetChatId, forwardMsg.message_text);
         }
@@ -180,9 +180,9 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
               <div 
                 className="bubble-wrapper"
                 onContextMenu={(e) => { e.preventDefault(); setContextMsgId(msg.message_id); }}
-                onMouseDown={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 500); }}
+                onMouseDown={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 650); }}
                 onMouseUp={() => clearTimeout(longPressTimer.current)}
-                onTouchStart={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 500); }}
+                onTouchStart={() => { longPressTimer.current = setTimeout(() => setContextMsgId(msg.message_id), 650); }}
                 onTouchEnd={() => clearTimeout(longPressTimer.current)}
               >
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
@@ -206,14 +206,8 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                             width={msg.image_width} 
                             height={msg.image_height} 
                             onOpen={(url) => setSelectedImage(url)} 
-                            viewOnce={msg.view_once}
-                            viewedAt={msg.viewed_at}
-                            messageId={msg.message_id}
-                            isOwn={isOwnMessage(msg)}
                         />
-                        {(!msg.view_once || !msg.viewed_at) && msg.message_text && (
-                            <p className="text with-image">{msg.message_text}</p>
-                        )}
+                        {msg.message_text && <p className="text with-image">{msg.message_text}</p>}
                      </div>
                   ) : (
                     <p className="text">{msg.message_text}</p>
