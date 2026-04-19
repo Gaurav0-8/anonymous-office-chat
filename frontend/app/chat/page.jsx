@@ -17,6 +17,15 @@ export default function ChatPage() {
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
 
+  const handleStartPrivateChat = async (targetUserId) => {
+    try {
+      const res = await chatsAPI.createPrivateChat(targetUserId);
+      handleChatSelect(res.data.chat_id, 'private');
+    } catch (err) {
+      console.error('Failed to start private chat:', err);
+    }
+  };
+
   // Auth guard
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -139,6 +148,7 @@ export default function ChatPage() {
             chatId={activeChatId}
             ws={wsRef.current}
             wsReady={wsReady}
+            onStartPrivateChat={handleStartPrivateChat}
           />
         ) : (
           <PrivateChat

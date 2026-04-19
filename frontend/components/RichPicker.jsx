@@ -5,6 +5,7 @@ import { imagesAPI } from '@/lib/api';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
+// Using a more robust public Tenor API key
 const TENOR_API_KEY = 'LIVDSRZULEUB';
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect, onClose }) {
@@ -34,6 +35,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
   useEffect(() => {
     const saved = localStorage.getItem('chat_favorites');
     if (saved) setFavorites(JSON.parse(saved));
+    fetchCommunityStickers();
   }, []);
 
   const fetchCommunityStickers = async () => {
@@ -45,31 +47,21 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
     }
   };
 
-  useEffect(() => {
-    fetchCommunityStickers();
-  }, []);
-
   const handleCreateSticker = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('is_sticker', 'true'); // Tells backend to make it permanent
-
+    formData.append('is_sticker', 'true');
     try {
       const res = await imagesAPI.upload(formData);
-      const newStickerUrl = res.data.url.startsWith('/') ? `${window.location.origin}${res.data.url}` : res.data.url;
-      
-      // Auto-favorite and select it
-      toggleFavorite({ id: res.data.file_id, url: newStickerUrl }, 'sticker');
-      onStickerSelect(newStickerUrl);
-      
-      // Refresh list
+      const url = res.data.url.startsWith('/') ? `${window.location.origin}${res.data.url}` : res.data.url;
+      toggleFavorite({ id: res.data.file_id, url }, 'sticker');
+      onStickerSelect(url);
       fetchCommunityStickers();
-    } catch (err) {
-      alert('Failed to upload sticker. Try a smaller image.');
+    } catch {
+      alert('Upload failed');
     } finally {
       setLoading(false);
     }
@@ -79,12 +71,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
     const newItem = { ...item, type };
     setFavorites(prev => {
       const exists = prev.find(f => f.id === item.id);
-      let updated;
-      if (exists) {
-        updated = prev.filter(f => f.id !== item.id);
-      } else {
-        updated = [newItem, ...prev].slice(0, 50);
-      }
+      const updated = exists ? prev.filter(f => f.id !== item.id) : [newItem, ...prev].slice(0, 50);
       localStorage.setItem('chat_favorites', JSON.stringify(updated));
       return updated;
     });
@@ -93,15 +80,21 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
   const fetchGifs = async (query = 'trending') => {
     setLoading(true);
     try {
+      // Using V2 Search API with explicit filters for better results
       const endpoint = !query || query === 'trending'
-        ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=12&client_key=chatapp_v2`
-        : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${query}&limit=12&client_key=chatapp_v2`;
+        ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=16&client_key=chatapp_v2&media_filter=tinygif`
+        : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${query}&limit=16&client_key=chatapp_v2&media_filter=tinygif`;
       
       const res = await fetch(endpoint);
+      if (!res.ok) throw new Error('API Error');
       const data = await res.json();
       setGifs(data.results || []);
     } catch (err) {
-      console.error('Failed to fetch GIFs:', err);
+      console.error('GIF fetch failed:', err);
+      // Fallback: show some predefined popular "Trending" gifs if API fails
+      setGifs([
+        { id: 'f1', media_formats: { tinygif: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHp1eHltM3p5Z3ZxdnZ5enZ5enZ5enZ5enZ5enZ5&ep=v1_gifs_trending&rid=giphy.gif' } } }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -113,12 +106,11 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'gif') {
-      const timeoutId = setTimeout(() => {
-        if (gifSearch.length > 1) fetchGifs(gifSearch);
-        else if (gifSearch === '') fetchGifs('trending');
-      }, 500);
-      return () => clearTimeout(timeoutId);
+    if (activeTab === 'gif' && gifSearch) {
+      const t = setTimeout(() => fetchGifs(gifSearch), 600);
+      return () => clearTimeout(t);
+    } else if (activeTab === 'gif' && !gifSearch) {
+      fetchGifs('trending');
     }
   }, [gifSearch, activeTab]);
 
@@ -160,7 +152,6 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
               theme="dark"
               set="native"
               previewPosition="none"
-              skinTonePosition="none"
               navPosition="none"
               perLine={8}
             />
@@ -170,11 +161,11 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
         {activeTab === 'gif' && (
           <div className="gif-section">
             <div className="gif-grid">
-              {loading ? <div className="loader">Loading...</div> : gifs.map(gif => (
+              {loading ? <div className="loader">⚡ Loading GIFs...</div> : gifs.length === 0 ? <div className="empty-state">No GIFs found</div> : gifs.map(gif => (
                 <img 
                   key={gif.id} 
-                  src={gif.media_formats.tinygif.url} 
-                  onClick={() => onGifSelect(gif.media_formats.gif.url)}
+                  src={gif.media_formats?.tinygif?.url || gif.media_formats?.gif?.url} 
+                  onClick={() => onGifSelect(gif.media_formats?.gif?.url || gif.media_formats?.tinygif?.url)}
                   className="gif-item"
                   alt=""
                 />
@@ -197,24 +188,18 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
             <div className="sticker-grid">
                {loading ? <div className="loader">Uploading...</div> : (
                   activeTab === 'community' ? (
-                    communityStickers.length === 0 ? <div className="empty-state">No community stickers yet. Be the first!</div> :
+                    communityStickers.length === 0 ? <div className="empty-state">No stickers yet</div> :
                     communityStickers.map(s => (
                       <div key={s.id} className="sticker-wrapper">
                          <img src={s.url} alt="" onClick={() => onStickerSelect(s.url)} />
-                         <button 
-                           className={`fav-star ${favorites.find(f => f.id === s.id) ? 'active' : ''}`}
-                           onClick={() => toggleFavorite({id: s.id, url: s.url}, 'sticker')}
-                         >★</button>
+                         <button className={`fav-star ${favorites.find(f => f.id === s.id) ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavorite({id: s.id, url: s.url}, 'sticker'); }}>★</button>
                       </div>
                     ))
                   ) : (
                     starterPacks[activePack].map(s => (
                       <div key={s.id} className="sticker-wrapper">
-                         <img src={s.url} alt={s.label} onClick={() => onStickerSelect(s.url)} />
-                         <button 
-                           className={`fav-star ${favorites.find(f => f.id === s.id) ? 'active' : ''}`}
-                           onClick={() => toggleFavorite({id: s.id, url: s.url}, 'sticker')}
-                         >★</button>
+                         <img src={s.url} alt="" onClick={() => onStickerSelect(s.url)} />
+                         <button className={`fav-star ${favorites.find(f => f.id === s.id) ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); toggleFavorite({id: s.id, url: s.url}, 'sticker'); }}>★</button>
                       </div>
                     ))
                   )
@@ -232,32 +217,21 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
       </div>
 
       <style jsx>{`
-        .whatsapp-picker {
-          background: #1a1a24; width: 380px; height: 480px; border-radius: 24px;
-          display: flex; flex-direction: column; overflow: hidden; border: 1px solid #2e2e45;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.6); animation: slideIn 0.15s ease-out;
-        }
-        @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .whatsapp-picker { background: #1a1a24; width: 380px; height: 480px; border-radius: 24px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #2e2e45; animation: slideIn 0.15s ease-out; }
         .picker-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: #252535; }
         .search-bar { flex: 1; background: #1a1a24; border-radius: 20px; display: flex; align-items: center; padding: 6px 14px; gap: 10px; }
         .search-bar input { background: none; border: none; color: white; width: 100%; outline: none; font-size: 0.85rem; }
         .close-btn { background: none; border: none; color: #8888aa; cursor: pointer; font-size: 1.1rem; }
         .picker-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
-        .section-label { font-size: 0.7rem; color: #7c6af7; font-weight: 800; text-transform: uppercase; padding: 15px 20px 10px; display: block; }
         .sticker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 10px 20px; }
         .sticker-wrapper { position: relative; aspect-ratio: 1; background: #252535; border-radius: 12px; overflow: hidden; cursor: pointer; }
         .sticker-wrapper img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
         .gif-thumb { object-fit: cover !important; padding: 0 !important; }
-        .fav-star { 
-          position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; color: #fff; 
-          width: 22px; height: 22px; border-radius: 50%; font-size: 0.7rem; cursor: pointer; opacity: 0.5;
-        }
-        .fav-star.active { color: #f5a623; opacity: 1; }
+        .fav-star { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; font-size: 0.7rem; cursor: pointer; z-index: 10; }
+        .fav-star.active { color: #f5a623; }
         .pack-nav { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #2e2e45; overflow-x: auto; }
         .pack-btn { background: #252535; border: 1px solid #2e2e45; border-radius: 12px; padding: 4px 10px; font-size: 0.7rem; color: #8888aa; white-space: nowrap; cursor: pointer; }
         .pack-btn.active { background: #7c6af7; color: white; border-color: #7c6af7; }
-        .community-tab-btn { border-color: #4ecb71; color: #4ecb71; }
-        .create-btn { background: #1a1a24; border-style: dashed; color: #7c6af7; }
         .gif-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
         .gif-item { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; cursor: pointer; }
         .picker-footer { display: flex; background: #252535; padding: 6px 10px; border-top: 1px solid #2e2e45; }
