@@ -5,6 +5,7 @@ import { chatsAPI, messagesAPI, imagesAPI } from '@/lib/api';
 import MessageInput from './MessageInput';
 import MediaMessage from './MediaMessage';
 import ImageModal from './ImageModal';
+import RichPicker from './RichPicker';
 
 export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPrivateChat }) {
   const [messages, setMessages] = useState([]);
@@ -13,9 +14,11 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [selectedImage, setSelectedImage] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
   const [messageReaders, setMessageReaders] = useState({});
   const [focusTrigger, setFocusTrigger] = useState(0);
   const messagesEndRef = useRef(null);
+  const reactionPickerRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -44,6 +47,17 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  // Click outside to close reaction picker
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+        if (reactionPickerRef.current && !reactionPickerRef.current.contains(e.target)) {
+            setReactionPickerMsgId(null);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!ws) return;
@@ -97,7 +111,10 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   };
 
   const handleReact = async (msgId, emoji) => {
-    await messagesAPI.react(msgId, emoji);
+    try {
+        await messagesAPI.react(msgId, emoji);
+        setReactionPickerMsgId(null);
+    } catch (err) { console.error('React failed:', err); }
   };
 
   const fetchReaders = async (msgId) => {
@@ -179,11 +196,23 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                     </div>
                   )}
 
-                  <div className={`teams-hover-actions ${hoveredMsgId === msg.message_id ? 'visible' : ''}`}>
+                  <div className={`teams-hover-actions ${hoveredMsgId === msg.message_id || reactionPickerMsgId === msg.message_id ? 'visible' : ''}`}>
                     <div className="emoji-row">
                       {['👍', '❤️', '😂', '😮', '😢'].map(e => (
                         <button key={e} onClick={() => handleReact(msg.message_id, e)}>{e}</button>
                       ))}
+                      <div className="reaction-plus-wrapper" ref={reactionPickerMsgId === msg.message_id ? reactionPickerRef : null}>
+                        <button className="plus-btn" onClick={() => setReactionPickerMsgId(msg.message_id)}>＋</button>
+                        {reactionPickerMsgId === msg.message_id && (
+                            <div className="reaction-picker-popover">
+                                <RichPicker 
+                                    onEmojiSelect={(native) => handleReact(msg.message_id, native)} 
+                                    onGifSelect={(url) => handleReact(msg.message_id, url)}
+                                    onClose={() => setReactionPickerMsgId(null)}
+                                />
+                            </div>
+                        )}
+                      </div>
                     </div>
                     <div className="icon-row">
                        <button title="Reply" onClick={() => { setReplyTo(msg); setFocusTrigger(f => f + 1); }}>↩️</button>
@@ -237,23 +266,32 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .quote-sender { font-size: 0.7rem; font-weight: 700; color: #7c6af7; display: block; }
         .quote-text { font-size: 0.8rem; margin: 2px 0 0; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
-        .teams-hover-actions { position: absolute; top: -45px; right: 0; background: #1a1926; border: 1px solid #2a293d; border-radius: 8px; padding: 4px; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: all 0.2s; z-index: 1000; }
+        .teams-hover-actions { position: absolute; top: -55px; right: 0; background: #1a1926; border: 1px solid #2a293d; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
         .msg-row.own .teams-hover-actions { right: auto; left: 0; }
         .teams-hover-actions.visible { opacity: 1; pointer-events: auto; transform: translateY(-5px); }
         
-        .emoji-row { display: flex; gap: 6px; padding: 4px; border-bottom: 1px solid #2a293d; }
-        .emoji-row button { background: none; border: none; font-size: 1.2rem; cursor: pointer; transition: transform 0.1s; }
+        .emoji-row { display: flex; gap: 8px; padding: 4px; border-bottom: 1px solid #2a293d; align-items: center; }
+        .emoji-row button { background: none; border: none; font-size: 1.3rem; cursor: pointer; transition: transform 0.1s; padding: 2px; }
         .emoji-row button:hover { transform: scale(1.2); }
-        .icon-row { display: flex; align-items: center; gap: 10px; padding: 6px; }
-        .icon-row button { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.7; }
-        .divider { width: 1px; height: 14px; background: #2a293d; }
+        .plus-btn { color: #8888aa; font-weight: bold; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05) !important; font-size: 0.8rem !important; margin-left: 4px; }
+        .plus-btn:hover { background: rgba(124, 106, 247, 0.2) !important; color: #7c6af7 !important; }
+        
+        .reaction-plus-wrapper { position: relative; }
+        .reaction-picker-popover { position: absolute; bottom: 35px; right: 0; z-index: 2005; animation: popUp 0.15s ease-out; }
+        @keyframes popUp { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        .icon-row { display: flex; align-items: center; gap: 12px; padding: 6px; }
+        .icon-row button { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .icon-row button:hover { opacity: 1; }
+        .divider { width: 1px; height: 16px; background: #2a293d; }
         .seen-by { font-size: 0.75rem; color: #8888aa; display: flex; align-items: center; gap: 4px; cursor: help; }
-        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-        .pill { background: #111019; border: 1px solid #2a293d; border-radius: 10px; padding: 2px 6px; font-size: 0.7rem; color: #8888aa; cursor: pointer; }
-        .pill.me { border-color: #7c6af7; background: rgba(124, 106, 247, 0.1); }
+        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .pill { background: #111019; border: 1px solid #2a293d; border-radius: 12px; padding: 3px 8px; font-size: 0.75rem; color: #8888aa; cursor: pointer; transition: all 0.2s; }
+        .pill.me { border-color: #7c6af7; background: rgba(124, 106, 247, 0.1); color: #7c6af7; font-weight: 600; }
+        .pill:hover { background: #1a1926; transform: translateY(-1px); }
         .meta { margin-top: 4px; text-align: right; }
         .time { font-size: 0.65rem; color: #55556a; }
-        .reply-preview { background: #1a1926; border-left: 4px solid #7c6af7; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a293d; }
+        .reply-preview { background: #1a1926; border-left: 4px solid #7c6af7; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a293d; }
         .preview-content { overflow: hidden; }
         .preview-sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; }
         .preview-text { font-size: 0.85rem; color: #8888aa; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

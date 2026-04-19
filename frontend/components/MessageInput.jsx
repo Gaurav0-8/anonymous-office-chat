@@ -73,14 +73,15 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
     }
   };
 
-  const handleSelectRich = (item) => {
-    if (item.type === 'emoji') {
-      setText(prev => prev + item.data);
-    } else {
-      // GIF/Sticker
-      onSend(item.data);
-      setShowPicker(false);
-    }
+  const handleEmojiSelect = (emojiNative) => {
+    setText(prev => prev + emojiNative);
+    // Keep focus on input after selecting emoji
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const handleGifSelect = (gifUrl) => {
+    onSend(gifUrl);
+    setShowPicker(false);
   };
 
   return (
@@ -99,7 +100,15 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId, fo
 
       <form onSubmit={handleSubmit} className="input-container">
         <div className="picker-wrapper" ref={pickerRef}>
-          {showPicker && <div className="picker-popover"><RichPicker onSelect={handleSelectRich} /></div>}
+          {showPicker && (
+            <div className="picker-popover">
+                <RichPicker 
+                    onEmojiSelect={handleEmojiSelect} 
+                    onGifSelect={handleGifSelect}
+                    onClose={() => setShowPicker(false)}
+                />
+            </div>
+          )}
           <button type="button" className="action-btn emoji-trigger" onClick={() => setShowPicker(!showPicker)}>😊</button>
         </div>
 
