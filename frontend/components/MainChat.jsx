@@ -330,7 +330,12 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .bubble-wrapper { max-width: 80%; position: relative; }
         .other-sender-label { font-size: 0.7rem; font-weight: 700; color: #7c6af7; margin-bottom: 4px; margin-left: 12px; }
         
-        .bubble { padding: 10px 14px; border-radius: 18px; position: relative; font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .bubble { 
+          padding: 10px 14px; border-radius: 18px; position: relative; 
+          font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+          width: fit-content; max-width: 100%;
+        }
+        .msg-row.own .bubble { margin-left: auto; }
         .bubble.own { background: linear-gradient(135deg, #7c6af7, #a855f7); color: white; border-bottom-right-radius: 4px; }
         .bubble.other { background: #262635; color: white; border-bottom-left-radius: 4px; }
         
