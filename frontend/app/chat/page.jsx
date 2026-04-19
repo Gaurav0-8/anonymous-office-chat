@@ -94,17 +94,17 @@ export default function ChatPage() {
           </div>
           <div className="sidebar-user-actions" style={{ display: 'flex', gap: '4px' }}>
             <button 
-              className="btn btn-secondary install-shortcut-btn" 
+              className="install-shortcut-btn" 
               onClick={() => {
-                const event = new Event('trigger-pwa-install');
-                window.dispatchEvent(event);
+                localStorage.removeItem('pwa-install-dismissed');
+                window.dispatchEvent(new Event('trigger-pwa-install'));
               }}
               title="Install App"
             >
               📥
             </button>
-            <button className="btn btn-secondary logout-btn" onClick={handleLogout} title="Logout">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button className="sidebar-logout-btn" onClick={handleLogout} title="Logout">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
@@ -227,6 +227,38 @@ export default function ChatPage() {
         @media (min-width: 769px) {
           .mobile-topbar { display: none; }
           .sidebar-backdrop { display: none; }
+        }
+        .sidebar-user-actions {
+          display: flex;
+          gap: 6px;
+          margin-left: auto;
+        }
+        .install-shortcut-btn, .sidebar-logout-btn {
+          background: #252535;
+          border: 1px solid #2e2e45;
+          color: #8888aa;
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          font-size: 0.9rem;
+        }
+        .install-shortcut-btn:hover {
+          background: #7c6af7;
+          color: white;
+          border-color: #8b5cf6;
+          box-shadow: 0 0 15px rgba(124, 106, 247, 0.3);
+          transform: translateY(-1px);
+        }
+        .sidebar-logout-btn:hover {
+          background: #ef4444;
+          color: white;
+          border-color: #f87171;
+          transform: translateY(-1px);
         }
       `}</style>
     </div>
