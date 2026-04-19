@@ -1,9 +1,13 @@
 'use client';
 
 export default function MediaMessage({ fileId, width, height, onOpen }) {
-  // Check if it already has the /uploads/ prefix or is a full URL
-  const isUrl = fileId && (fileId.startsWith('http') || fileId.startsWith('/uploads/'));
-  const src = isUrl ? fileId : `/uploads/${fileId}`;
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  
+  // Construct the correct source URL
+  let src = fileId;
+  if (fileId && !fileId.startsWith('http')) {
+    src = `${apiBase}${fileId.startsWith('/uploads/') ? '' : '/uploads/'}${fileId}`;
+  }
   
   const aspectRatio = width && height ? `${width}/${height}` : 'auto';
 
