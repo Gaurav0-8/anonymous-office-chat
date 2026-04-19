@@ -1,89 +1,217 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function WelcomePage() {
   const router = useRouter();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const slides = [
+    { 
+      icon: '🛡️', 
+      title: 'The Gateway', 
+      desc: 'No passwords to leak. No usernames to hack. Enter the workspace securely with your Google account in just one click.',
+      label: 'Security First'
+    },
+    { 
+      icon: '🎭', 
+      title: 'The Mask', 
+      desc: 'On your first visit, pick an alias. This becomes your unique identity within the app. Your real name remains a ghost.',
+      label: 'Identity Control'
+    },
+    { 
+      icon: '💬', 
+      title: 'The Whisper', 
+      desc: 'Some thoughts are meant for one. Start secure, private conversations that stay between you and your colleague.',
+      label: 'Direct Access'
+    },
+    { 
+      icon: '⏱️', 
+      title: 'The 24h Cycle', 
+      desc: 'Everything resets with the sun. We preserve context for 24 hours, then wipe the slate clean for a fresh day.',
+      label: 'Ephemeral Peace'
+    },
+    { 
+      icon: '📲', 
+      title: 'The Shortcut', 
+      desc: 'Take the workspace with you. Install this chat to your home screen for native speed and instant accessibility.',
+      label: 'Stay Connected',
+      isPWA: true
+    },
+    { 
+      icon: '✨', 
+      title: 'Ready?', 
+      desc: 'You are now briefed on the workspace. Your coworkers are waiting. Step into the anonymous hall.',
+      label: 'Get Started',
+      isFinal: true
+    }
+  ];
+
+  const next = () => {
+    if (currentSlide < slides.length - 1) setCurrentSlide(currentSlide + 1);
+  };
+
+  const prev = () => {
+    if (currentSlide > 0) setCurrentSlide(currentSlide - 1);
+  };
+
+  const slide = slides[currentSlide];
 
   return (
     <div className="welcome-page">
-      <div className="welcome-container">
-        {/* Hero */}
-        <div className="welcome-hero fade-in">
-          <div className="welcome-icon">
-            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
-          <h1>Anonymous Office Chat</h1>
-          <p>Connect with your colleagues anonymously. Share thoughts freely in a secure, moderated environment.</p>
-        </div>
+      <div className="aurora-container">
+        <div className="aurora aurora-1" />
+        <div className="aurora aurora-2" />
+        <div className="aurora aurora-3" />
+      </div>
 
-          {/* Feature Grid */}
-          <div className="welcome-features">
-            {[
-              { icon: '🛡️', title: 'Google-Only Access', desc: 'No passwords to create. No usernames to remember. 100% secure authentication with your Google account.' },
-              { icon: '✨', title: 'Pick Your Alias', desc: 'First time here? Just pick a display name. That is your forever identity in our private space.' },
-              { icon: '💬', title: 'Private Whispers', desc: 'Go beyond the main hall. Start secure 1-on-1 private chats with any colleague instantly.' },
-              { icon: '⏱️', title: '24h Persistence', desc: 'Context matters. We keep your messages for 24 hours before a fresh server reset every day.' },
-              { icon: '📲', title: 'Native PWA', desc: 'Install this chat directly to your phone or desktop home screen. Native speed, no App Store needed.' },
-              { icon: '🎭', title: 'Identity Hidden', desc: 'We take anonymity seriously. Your real name and email are never shared or visible.' },
-            ].map((f, i) => (
-              <div key={f.title} className="feature-card glass highlight" style={{ animationDelay: `${i * 0.15}s` }}>
-                <div className="feature-icon">{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.desc}</p>
+      <div className="welcome-content">
+        <div className="onboarding-card glass shadow-neon">
+          <div className="card-top">
+            <span className="slide-label">{slide.label}</span>
+            <div className="progress-dots">
+              {slides.map((_, i) => (
+                <div key={i} className={`dot ${i === currentSlide ? 'active' : ''}`} />
+              ))}
+            </div>
+          </div>
+
+          <div className="slide-content fade-in" key={currentSlide}>
+            <div className="slide-icon">{slide.icon}</div>
+            <h1 className="slide-title">{slide.title}</h1>
+            <p className="slide-desc">{slide.desc}</p>
+          </div>
+
+          <div className="card-controls">
+            {currentSlide > 0 && (
+              <button className="btn-secondary" onClick={prev}>Previous</button>
+            )}
+            
+            {slide.isFinal ? (
+              <button className="btn-primary highlight-btn" onClick={() => router.push('/login')}>
+                Login Now
+              </button>
+            ) : slide.isPWA ? (
+              <div className="pwa-controls" style={{ display: 'flex', gap: '12px', flex: 1 }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={next}>Skip</button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={() => {
+                  window.dispatchEvent(new Event('trigger-pwa-install'));
+                  next();
+                }}>Install</button>
               </div>
-            ))}
+            ) : (
+              <button className="btn-primary" onClick={next}>Next</button>
+            )}
           </div>
-
-        {/* CTA */}
-        <div className="welcome-cta">
-          <button className="btn btn-primary welcome-cta-btn" onClick={() => router.push('/login')}>
-            Get Started
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </button>
-          <p className="text-muted" style={{ marginTop: 12, fontSize: '0.85rem' }}>
-            Already have an account?{' '}
-            <button onClick={() => router.push('/login')} className="text-accent" style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-              Sign In
-            </button>
-          </p>
         </div>
       </div>
 
       <style jsx>{`
         .welcome-page {
           min-height: 100vh;
+          background: #02020a;
+          color: white;
+          overflow: hidden;
+          position: relative;
+          font-family: 'Inter', -apple-system, sans-serif;
+        }
+
+        .aurora-container { position: fixed; inset: 0; filter: blur(100px); opacity: 0.5; z-index: 1; }
+        .aurora { position: absolute; border-radius: 50%; animation: drift 20s infinite alternate ease-in-out; }
+        .aurora-1 { width: 600px; height: 600px; background: #3b82f6; top: -10%; left: -10%; }
+        .aurora-2 { width: 500px; height: 500px; background: #7c3aed; bottom: -5%; right: -5%; animation-delay: -5s; }
+        .aurora-3 { width: 400px; height: 400px; background: #db2777; top: 30%; right: 10%; animation-delay: -10s; }
+
+        @keyframes drift { to { transform: translate(15%, 15%) scale(1.2) rotate(30deg); } }
+
+        .welcome-content {
+          position: relative;
+          z-index: 10;
+          height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: radial-gradient(ellipse at top, rgba(124,106,247,0.15) 0%, transparent 60%), var(--bg-primary);
           padding: 24px;
         }
-        .welcome-container { max-width: 900px; width: 100%; text-align: center; }
-        .welcome-hero { margin-bottom: 48px; }
-        .welcome-icon {
-          display: inline-flex; align-items: center; justify-content: center;
-          width: 80px; height: 80px;
-          background: linear-gradient(135deg, var(--accent), #a855f7);
-          border-radius: 20px; margin-bottom: 24px;
-          box-shadow: 0 8px 32px var(--accent-glow);
+
+        .onboarding-card {
+          width: 100%;
+          max-width: 480px;
+          min-height: 520px;
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          border-radius: 40px;
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .glass {
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(24px) saturate(180%);
+        }
+        
+        .shadow-neon {
+          box-shadow: 0 20px 80px rgba(0,0,0,0.5), 0 0 20px rgba(124, 106, 247, 0.1);
+        }
+
+        .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 40px; }
+        .slide-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #7c3aed; }
+        
+        .progress-dots { display: flex; gap: 6px; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.1); transition: all 0.3s; }
+        .dot.active { background: #7c3aed; width: 20px; border-radius: 10px; }
+
+        .slide-content { flex: 1; text-align: center; }
+        .slide-icon { font-size: 4.5rem; margin-bottom: 24px; animation: bounce 4s infinite ease-in-out; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        .slide-title { font-size: 2.2rem; font-weight: 900; margin-bottom: 16px; letter-spacing: -0.02em; }
+        .slide-desc { font-size: 1.05rem; line-height: 1.6; color: rgba(255,255,255,0.6); }
+
+        .card-controls { display: flex; gap: 12px; margin-top: 40px; }
+        
+        button {
+          height: 56px;
+          border-radius: 20px;
+          border: none;
+          font-weight: 800;
+          font-size: 1rem;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex; align-items: center; justify-content: center;
+        }
+
+        .btn-primary {
+          background: white;
+          color: black;
+          flex: 1;
+          box-shadow: 0 10px 30px rgba(255,255,255,0.1);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 40px rgba(255,255,255,0.2); }
+        .btn-primary:active { transform: scale(0.98); }
+        
+        .highlight-btn {
+          background: linear-gradient(135deg, #7c3aed, #db2777);
           color: white;
         }
-        .welcome-hero h1 { font-size: 2.8rem; font-weight: 800; margin-bottom: 16px; background: linear-gradient(135deg, var(--text-primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .welcome-hero p { font-size: 1.1rem; color: var(--text-secondary); max-width: 560px; margin: 0 auto; line-height: 1.7; }
-        .welcome-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 48px; }
-        @media (max-width: 640px) { .welcome-features { grid-template-columns: 1fr; } .welcome-hero h1 { font-size: 2rem; } }
-        .welcome-feature-card { padding: 28px 24px; text-align: left; transition: transform 0.2s, box-shadow 0.2s; }
-        .welcome-feature-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-        .welcome-feature-icon { font-size: 2rem; display: block; margin-bottom: 12px; }
-        .welcome-feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
-        .welcome-feature-card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; }
-        .welcome-cta-btn { padding: 14px 32px; font-size: 1rem; border-radius: 12px; }
+
+        .btn-secondary {
+          background: rgba(255,255,255,0.05);
+          color: white;
+          padding: 0 24px;
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 480px) {
+          .onboarding-card { padding: 32px 24px; min-height: 480px; }
+          .slide-title { font-size: 1.8rem; }
+        }
       `}</style>
     </div>
   );
