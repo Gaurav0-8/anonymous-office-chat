@@ -19,7 +19,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Clear local state and redirect if unauthorized
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -41,7 +40,9 @@ export const authAPI = {
 export const chatsAPI = {
   getMainChat: () => api.get('/chats/main'),
   getChatMessages: (chatId) => api.get(`/chats/${chatId}/messages`),
+  // Support both names for compatibility across the codebase
   getUserChats: () => api.get('/chats/my-chats'),
+  getMyChats: () => api.get('/chats/my-chats'), 
   createPrivateChat: (targetUserId) => api.post('/chats/private', { target_user_id: targetUserId }),
 };
 
