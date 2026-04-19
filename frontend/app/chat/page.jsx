@@ -15,6 +15,14 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Auto-open sidebar on Desktop only
   useEffect(() => {
@@ -40,6 +48,9 @@ export default function ChatPage() {
     if (savedChatId && savedChatType) {
       setActiveChatId(parseInt(savedChatId));
       setActiveChatType(savedChatType);
+    } else {
+      setActiveChatId(1);
+      setActiveChatType('group');
     }
   }, [router]);
 
@@ -71,6 +82,19 @@ export default function ChatPage() {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+    };
+
+    ws.onmessage = (e) => {
+        try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'new_message' && data.message?.chat_id !== activeChatId) {
+                setToast({
+                    name: data.message.sender_name,
+                    text: data.message.message_text,
+                    chatId: data.message.chat_id
+                });
+            }
+        } catch {}
     };
 
     ws.onclose = () => {
@@ -218,7 +242,36 @@ export default function ChatPage() {
         )}
       </main>
 
+      {/* Real-time Toast Notification */}
+      {toast && (
+        <div className="toast-notification-container" onClick={() => handleChatSelect(toast.chatId, 'private')}>
+            <div className="toast-icon">💬</div>
+            <div className="toast-info">
+                <div className="toast-name">New message from {toast.name}</div>
+                <div className="toast-text">{toast.text?.substring(0, 40)}{toast.text?.length > 40 ? '...' : ''}</div>
+            </div>
+        </div>
+      )}
+
       <style jsx>{`
+        .toast-notification-container {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #1c1c28; border: 1px solid rgba(124, 106, 247, 0.3);
+            border-radius: 16px; padding: 12px 20px; min-width: 300px;
+            display: flex; align-items: center; gap: 14px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            cursor: pointer; z-index: 100000;
+            animation: toastSlideIn 0.3s ease-out;
+        }
+        @keyframes toastSlideIn { from { transform: translate(-50%, -100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        .toast-icon { 
+            width: 40px; height: 40px; border-radius: 50%; 
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; flex-shrink: 0;
+        }
+        .toast-name { font-size: 0.85rem; font-weight: 700; color: white; }
+        .toast-text { font-size: 0.8rem; color: #888; margin-top: 2px; }
         .chat-layout {
           display: flex;
           height: 100dvh;

@@ -103,13 +103,19 @@ func toggleReaction(c *fiber.Ctx) error {
 	var req struct { Emoji string `json:"emoji"` }
 	if err := c.BodyParser(&req); err != nil { return err }
 
-	res, _ := db.DB.Exec("DELETE FROM message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?", msgID, userID, req.Emoji)
-	affected, _ := res.RowsAffected()
+	// Check if this EXACT reaction exists for toggling
+	var existingCount int
+	_ = db.DB.QueryRow("SELECT COUNT(*) FROM message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?", msgID, userID, req.Emoji).Scan(&existingCount)
+
+	// Remove ANY reaction by this user on this message (Forces one per user)
+	_, _ = db.DB.Exec("DELETE FROM message_reactions WHERE message_id = ? AND user_id = ?", msgID, userID)
 
 	action := "add"
-	if affected > 0 {
+	if existingCount > 0 {
+		// User clicked the same emoji again -> remove it
 		action = "remove"
 	} else {
+		// User clicked a new emoji -> add only that one
 		_, err := db.DB.Exec("INSERT INTO message_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", msgID, userID, req.Emoji)
 		if err != nil { return err }
 	}

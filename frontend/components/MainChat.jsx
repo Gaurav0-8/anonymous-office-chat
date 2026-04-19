@@ -123,12 +123,20 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         if (m.message_id !== msgId) return m;
         const exists = m.reactions?.find(r => r.emoji === emoji);
         let updated = [...(m.reactions || [])];
+        
+        // Remove ANY existing reaction by "me" to enforce single-reaction limit
+        updated = updated.map(r => ({ ...r, count: r.me ? r.count - 1 : r.count, me: false })).filter(r => r.count > 0);
+
         if (exists?.me) {
-            updated = updated.map(r => r.emoji === emoji ? { ...r, count: r.count - 1, me: false } : r).filter(r => r.count > 0);
-        } else if (exists) {
-            updated = updated.map(r => r.emoji === emoji ? { ...r, count: r.count + 1, me: true } : r);
+            // Already reacted with the same emoji -> toggled off (already handled by line above)
         } else {
-            updated.push({ emoji, count: 1, me: true });
+            // New emoji or was different emoji -> add this one
+            const newExists = updated.find(r => r.emoji === emoji);
+            if (newExists) {
+                updated = updated.map(r => r.emoji === emoji ? { ...r, count: r.count + 1, me: true } : r);
+            } else {
+                updated.push({ emoji, count: 1, me: true });
+            }
         }
         return { ...m, reactions: updated };
     }));
