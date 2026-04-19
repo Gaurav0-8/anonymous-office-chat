@@ -6,7 +6,6 @@ import { chatsAPI } from '@/lib/api';
 import MainChat from '@/components/MainChat';
 import PrivateChat from '@/components/PrivateChat';
 import ChatList from '@/components/ChatList';
-import ThemeToggle from '@/components/ThemeToggle';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -111,9 +110,6 @@ export default function ChatPage() {
             <span className="sidebar-logo">💬</span>
             <span className="sidebar-title">ChatApp</span>
           </div>
-          <div className="sidebar-actions">
-            <ThemeToggle />
-          </div>
         </div>
 
         <div className="sidebar-user">
@@ -161,7 +157,6 @@ export default function ChatPage() {
             ☰
           </button>
           <span className="mobile-title">💬 ChatApp</span>
-          <ThemeToggle />
         </div>
         {activeChatType === 'group' ? (
           <MainChat

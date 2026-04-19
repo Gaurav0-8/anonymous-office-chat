@@ -23,23 +23,6 @@
   --radius-xs: 4px;
 }
 
-[data-theme="light"] {
-  --bg-primary: #f0f0f8;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-input: #f4f4fb;
-  --border: #e0e0f0;
-  --accent: #6c5ce7;
-  --accent-hover: #7d6ef8;
-  --accent-glow: rgba(108, 92, 231, 0.2);
-  --text-primary: #1a1a2e;
-  --text-secondary: #555577;
-  --text-muted: #9999bb;
-  --message-own: #ede9ff;
-  --message-other: #f4f4fb;
-  --scrollbar: #d0d0e8;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-}
 
 * {
   box-sizing: border-box;
