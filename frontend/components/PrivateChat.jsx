@@ -61,6 +61,21 @@ export default function PrivateChat({ currentUser, chatId, ws, wsReady, onBack }
     return () => ws.removeEventListener('message', handler);
   }, [ws, chatId]);
 
+  // Layered Back Gesture for Image Modal
+  useEffect(() => {
+    if (!selectedImage) return;
+    
+    const handlePopModal = (e) => {
+      setSelectedImage(null);
+      // We "consume" the back gesture for the modal
+      window.history.pushState(null, '', window.location.pathname);
+    };
+
+    window.history.pushState({ modal: true }, '', window.location.pathname);
+    window.addEventListener('popstate', handlePopModal);
+    return () => window.removeEventListener('popstate', handlePopModal);
+  }, [selectedImage]);
+
   const otherParticipant = chatDetails?.participants.find(
     (p) => p.user_id !== currentUser.user_id
   );
