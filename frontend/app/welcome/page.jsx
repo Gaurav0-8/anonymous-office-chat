@@ -24,7 +24,7 @@ export default function WelcomePage() {
           <div className="welcome-features">
             {[
               { icon: '🛡️', title: 'Total Privacy', desc: 'No phone numbers or emails. Your workspace identity remains a secret.' },
-              { icon: '⏱️', title: '30m Memory', desc: 'Messages automatically dissolve every 30 minutes. No logs, no traces.' },
+              { icon: '⏱️', title: '24h Memory', desc: 'Messages automatically dissolve every 24 hours. A fresh start every day.' },
               { icon: '💼', title: 'Office Focused', desc: 'Securely connect with colleagues in a moderated, professional space.' },
             ].map((f, i) => (
               <div key={f.title} className="feature-card glass highlight" style={{ animationDelay: `${i * 0.15}s` }}>
