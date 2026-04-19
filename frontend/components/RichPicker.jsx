@@ -5,8 +5,8 @@ import { imagesAPI } from '@/lib/api';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
-// Using a more robust public Tenor API key
-const TENOR_API_KEY = 'LIVDSRZULEUB';
+// Using Giphy Public Beta Key for immediate access
+const GIPHY_API_KEY = 'cwEZMAd8U7YscbyV7zUuK27y0YIuOkpT';
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect, onClose }) {
   const [activeTab, setActiveTab] = useState('emoji');
@@ -18,7 +18,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
   const [favorites, setFavorites] = useState([]);
   const fileInputRef = useRef(null);
 
-  // High-Quality Starter Sticker Packs
+  // High-Quality Starter Sticker Packs (Memes)
   const starterPacks = {
     memes: [
       { id: 's1', url: 'https://i.imgflip.com/4/30zz5g.jpg', label: 'Jalwa' },
@@ -77,40 +77,35 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
     });
   };
 
-  const fetchGifs = async (query = 'trending') => {
+  // 🎬 Giphy Integration
+  const fetchGifs = async (query = '') => {
     setLoading(true);
     try {
-      // Using V2 Search API with explicit filters for better results
-      const endpoint = !query || query === 'trending'
-        ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=16&client_key=chatapp_v2&media_filter=tinygif`
-        : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${query}&limit=16&client_key=chatapp_v2&media_filter=tinygif`;
+      const endpoint = !query
+        ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=g`
+        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${query}&limit=20&rating=g&lang=en`;
       
       const res = await fetch(endpoint);
-      if (!res.ok) throw new Error('API Error');
-      const data = await res.json();
-      setGifs(data.results || []);
+      const { data } = await res.json();
+      setGifs(data || []);
     } catch (err) {
-      console.error('GIF fetch failed:', err);
-      // Fallback: show some predefined popular "Trending" gifs if API fails
-      setGifs([
-        { id: 'f1', media_formats: { tinygif: { url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHp1eHltM3p5Z3ZxdnZ5enZ5enZ5enZ5enZ5enZ5&ep=v1_gifs_trending&rid=giphy.gif' } } }
-      ]);
+      console.error('Giphy Fetch failed:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'gif' && gifs.length === 0) fetchGifs('trending');
+    if (activeTab === 'gif' && gifs.length === 0) fetchGifs();
     if (activeTab === 'community') fetchCommunityStickers();
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'gif' && gifSearch) {
-      const t = setTimeout(() => fetchGifs(gifSearch), 600);
-      return () => clearTimeout(t);
-    } else if (activeTab === 'gif' && !gifSearch) {
-      fetchGifs('trending');
+    if (activeTab === 'gif') {
+      const timeoutId = setTimeout(() => {
+        fetchGifs(gifSearch);
+      }, 600);
+      return () => clearTimeout(timeoutId);
     }
   }, [gifSearch, activeTab]);
 
@@ -121,7 +116,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
           <span className="search-icon">🔍</span>
           <input 
             type="text" 
-            placeholder={activeTab === 'gif' ? "Search Tenor..." : "Search emojis..."}
+            placeholder={activeTab === 'gif' ? "Search Giphy..." : "Search emojis..."}
             value={gifSearch}
             onChange={(e) => setGifSearch(e.target.value)}
           />
@@ -161,16 +156,17 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
         {activeTab === 'gif' && (
           <div className="gif-section">
             <div className="gif-grid">
-              {loading ? <div className="loader">⚡ Loading GIFs...</div> : gifs.length === 0 ? <div className="empty-state">No GIFs found</div> : gifs.map(gif => (
+              {loading ? <div className="loader">🔥 Fetching Giphys...</div> : gifs.length === 0 ? <div className="empty-state">No GIFs found</div> : gifs.map(gif => (
                 <img 
                   key={gif.id} 
-                  src={gif.media_formats?.tinygif?.url || gif.media_formats?.gif?.url} 
-                  onClick={() => onGifSelect(gif.media_formats?.gif?.url || gif.media_formats?.tinygif?.url)}
+                  src={gif.images.fixed_width_small.url} 
+                  onClick={() => onGifSelect(gif.images.original.url)}
                   className="gif-item"
                   alt=""
                 />
               ))}
             </div>
+            <div className="giphy-attribution">Powered by GIPHY</div>
           </div>
         )}
 
@@ -217,7 +213,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
       </div>
 
       <style jsx>{`
-        .whatsapp-picker { background: #1a1a24; width: 380px; height: 480px; border-radius: 24px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #2e2e45; animation: slideIn 0.15s ease-out; }
+        .whatsapp-picker { background: #1a1a24; width: 380px; height: 480px; border-radius: 24px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #2e2e45; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
         .picker-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: #252535; }
         .search-bar { flex: 1; background: #1a1a24; border-radius: 20px; display: flex; align-items: center; padding: 6px 14px; gap: 10px; }
         .search-bar input { background: none; border: none; color: white; width: 100%; outline: none; font-size: 0.85rem; }
@@ -226,7 +222,6 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
         .sticker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 10px 20px; }
         .sticker-wrapper { position: relative; aspect-ratio: 1; background: #252535; border-radius: 12px; overflow: hidden; cursor: pointer; }
         .sticker-wrapper img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
-        .gif-thumb { object-fit: cover !important; padding: 0 !important; }
         .fav-star { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.5); border: none; color: #fff; width: 22px; height: 22px; border-radius: 50%; font-size: 0.7rem; cursor: pointer; z-index: 10; }
         .fav-star.active { color: #f5a623; }
         .pack-nav { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #2e2e45; overflow-x: auto; }
@@ -234,6 +229,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
         .pack-btn.active { background: #7c6af7; color: white; border-color: #7c6af7; }
         .gif-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
         .gif-item { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; cursor: pointer; }
+        .giphy-attribution { font-size: 0.6rem; color: #55556a; text-align: center; padding: 8px; text-transform: uppercase; letter-spacing: 1px; }
         .picker-footer { display: flex; background: #252535; padding: 6px 10px; border-top: 1px solid #2e2e45; }
         .nav-tab { flex: 1; padding: 8px; font-size: 1.2rem; background: none; border: none; cursor: pointer; filter: grayscale(1); opacity: 0.6; }
         .nav-tab.active { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
