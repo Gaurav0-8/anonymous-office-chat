@@ -352,6 +352,73 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .time { font-size: 0.65rem; color: rgba(255,255,255,0.3); }
         .insta-full-picker { position: absolute; bottom: 100%; left: 0; z-index: 10001; }
 
+        .reply-quote-bar {
+          background: rgba(255, 255, 255, 0.1);
+          border-left: 3px solid #fff;
+          padding: 6px 10px;
+          border-radius: 6px;
+          margin-bottom: 6px;
+          font-size: 0.8rem;
+          max-width: 100%;
+          cursor: pointer;
+        }
+        .bubble.other .reply-quote-bar {
+          background: rgba(255, 255, 255, 0.05);
+          border-left-color: #7c6af7;
+        }
+        .quote-sender { font-weight: 700; display: block; margin-bottom: 2px; opacity: 0.9; font-size: 0.75rem; }
+        .quote-text { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
+
+        .reply-preview {
+          background: #10101a;
+          border-top: 1px solid rgba(255,255,255,0.05);
+          padding: 10px 16px; 
+          display: flex; 
+          align-items: center; 
+          gap: 12px;
+          animation: slideUp 0.2s ease-out;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .preview-content { flex: 1; border-left: 3px solid #7c6af7; padding-left: 12px; min-width: 0; }
+        .preview-sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; display: block; margin-bottom: 1px; }
+        .preview-text { font-size: 0.8rem; margin: 0; opacity: 0.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .preview-close { background: none; border: none; color: #666; font-size: 1.1rem; cursor: pointer; padding: 4px; }
+
+        .forward-modal-overlay {
+          position: absolute; inset: 0; background: rgba(0,0,0,0.8);
+          backdrop-filter: blur(8px); z-index: 20000;
+          display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .forward-modal {
+          background: #1c1c28; border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 24px; width: 100%; max-width: 360px;
+          display: flex; flex-direction: column; overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+        .modal-header {
+          padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);
+          display: flex; align-items: center; justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 1rem; margin: 0; font-weight: 700; }
+        .modal-header button { background: none; border: none; color: #888; font-size: 1.2rem; cursor: pointer; }
+        .user-list-scroll { max-height: 320px; overflow-y: auto; padding: 12px; }
+        .user-item {
+          display: flex; align-items: center; gap: 12px; padding: 10px;
+          border-radius: 14px; cursor: pointer; transition: background 0.2s;
+        }
+        .user-item:hover { background: rgba(255,255,255,0.05); }
+        .user-avatar-small {
+          width: 34px; height: 34px; border-radius: 50%;
+          background: linear-gradient(135deg, #7c6af7, #a855f7);
+          display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700; color: white;
+        }
+        .user-name-small { flex: 1; font-size: 0.9rem; font-weight: 500; }
+        .send-forward-btn {
+          background: rgba(124,106,247,0.15); color: #7c6af7; border: 1px solid rgba(124,106,247,0.3); padding: 5px 12px;
+          border-radius: 8px; font-weight: 600; font-size: 0.75rem; transition: all 0.2s;
+        }
+        .user-item:hover .send-forward-btn { background: #7c6af7; color: white; }
+
         .spinner { width: 30px; height: 30px; border: 3px solid rgba(124,106,247,0.2); border-top: 3px solid #7c6af7; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
