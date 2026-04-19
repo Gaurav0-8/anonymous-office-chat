@@ -7,6 +7,16 @@ export default function WelcomePage() {
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Skip onboarding if already seen
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const isComplete = localStorage.getItem('onboarding-complete');
+      if (isComplete) {
+        router.replace('/login');
+      }
+    }
+  });
+
   const slides = [
     { 
       icon: '🛡️', 
@@ -56,6 +66,11 @@ export default function WelcomePage() {
     if (currentSlide > 0) setCurrentSlide(currentSlide - 1);
   };
 
+  const handleLoginJump = () => {
+    localStorage.setItem('onboarding-complete', 'true');
+    router.push('/login');
+  };
+
   const slide = slides[currentSlide];
 
   return (
@@ -64,6 +79,13 @@ export default function WelcomePage() {
         <div className="aurora aurora-1" />
         <div className="aurora aurora-2" />
         <div className="aurora aurora-3" />
+      </div>
+
+      {/* Global Shortcut for Old Users */}
+      <div className="fast-track-header">
+        <button className="btn-signin-shortcut glass" onClick={handleLoginJump}>
+          Sign In
+        </button>
       </div>
 
       <div className="welcome-content">
@@ -99,7 +121,7 @@ export default function WelcomePage() {
               ) : <div className="arrow-placeholder" />}
               
               {slide.isFinal ? (
-                <button className="login-final-btn" onClick={() => router.push('/login')}>
+                <button className="login-final-btn" onClick={handleLoginJump}>
                   <span>Get Started</span>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
@@ -207,6 +229,30 @@ export default function WelcomePage() {
         @media (max-width: 480px) {
           .onboarding-card { padding: 32px 24px; min-height: 520px; }
           .slide-title { font-size: 1.8rem; }
+        }
+
+        /* Fast Track Header */
+        .fast-track-header {
+          position: fixed;
+          top: 32px;
+          right: 32px;
+          z-index: 100;
+        }
+        .btn-signin-shortcut {
+          padding: 10px 24px;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.03);
+          color: white;
+          font-weight: 700;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        .btn-signin-shortcut:hover {
+          background: rgba(255,255,255,0.1);
+          border-color: rgba(255,255,255,0.2);
+          transform: translateY(-2px);
         }
       `}</style>
     </div>
