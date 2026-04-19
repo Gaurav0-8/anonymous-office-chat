@@ -159,10 +159,18 @@ export default function MainChat({ currentUser, chatId, ws, wsReady }) {
                     height={msg.image_height}
                     onOpen={(url) => setSelectedImage(url)}
                   />
-                ) : null}
-                {msg.message_text && (
+                ) : (msg.message_text && /^http.*\.(jpg|jpeg|gif|png|webp)(\?.*)?$/i.test(msg.message_text)) ? (
+                  <div className="message-sticker">
+                    <img 
+                      src={msg.message_text} 
+                      alt="Sticker" 
+                      onClick={() => setSelectedImage(msg.message_text)}
+                      className="sticker-content"
+                    />
+                  </div>
+                ) : msg.message_text ? (
                   <p className="message-text">{msg.message_text}</p>
-                )}
+                ) : null}
                 <div className="message-meta">
                   <span className="message-time">
                     {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -259,6 +267,20 @@ export default function MainChat({ currentUser, chatId, ws, wsReady }) {
         .message-time { font-size: 0.7rem; color: var(--text-muted); }
         .message-edited { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
         .message-readers-btn { background: none; border: none; cursor: pointer; font-size: 0.7rem; color: var(--accent); }
+        .message-sticker { 
+           margin: 4px 0;
+           border-radius: 12px;
+           overflow: hidden;
+           max-width: 200px;
+        }
+        .sticker-content {
+           width: 100%;
+           height: auto;
+           display: block;
+           cursor: pointer;
+           transition: transform 0.2s;
+        }
+        .sticker-content:hover { transform: scale(1.02); }
       `}</style>
     </div>
   );

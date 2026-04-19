@@ -14,15 +14,15 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
   const [loadingGifs, setLoadingGifs] = useState(false);
   const [favorites, setFavorites] = useState([]);
 
-  // Sticker Packs Configuration
+  // High-Quality Sticker Packs
   const stickerPacks = {
     memes: [
-      { id: 'm1', url: 'https://i.imgflip.com/4/30zz5g.jpg', label: 'Jalwa' },
-      { id: 'm2', url: 'https://i.imgflip.com/4/1ur9b0.jpg', label: 'Paisa' },
-      { id: 'm3', url: 'https://i.imgflip.com/4/26am.jpg', label: 'Saale' },
-      { id: 'm4', url: 'https://i.imgflip.com/4/9ehk.jpg', label: 'Control' },
-      { id: 'm5', url: 'https://i.imgflip.com/ng749.jpg', label: 'Mirzapur' },
-      { id: 'm6', url: 'https://i.imgflip.com/4/19vzk7.jpg', label: 'Hera Pheri' },
+      { id: 'm1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHp1eHltM3p5Z3ZxdnZ5enZ5enZ5enZ5enZ5enZ5&ep=v1_gifs_search&rid=giphy.gif', label: 'Jalwa' },
+      { id: 'm2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHp1eHltM3p5Z3ZxdnZ5enZ5enZ5enZ5enZ5enZ5&ep=v1_gifs_search&rid=giphy.gif', label: 'Paisa' },
+      { id: 'm3', url: 'https://i.imgflip.com/4/1ur9b0.jpg', label: 'Paisa 2' },
+      { id: 'm4', url: 'https://i.imgflip.com/4/26am.jpg', label: 'Abey Saale' },
+      { id: 'm5', url: 'https://i.imgflip.com/4/30zz5g.jpg', label: 'Jalwa' },
+      { id: 'm6', url: 'https://i.imgflip.com/4/9ehk.jpg', label: 'Control' },
     ],
     reactions: [
       { id: 'r1', url: 'https://fonts.gstatic.com/s/e/notoemoji/latest/1f921/512.webp', label: 'Clown' },
@@ -40,16 +40,21 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
     const newItem = { ...item, type };
     setFavorites(prev => {
       const exists = prev.find(f => f.id === item.id);
-      const updated = exists ? prev.filter(f => f.id !== item.id) : [newItem, ...prev];
-      localStorage.setItem('chat_favorites', JSON.stringify(updated.slice(0, 20)));
+      let updated;
+      if (exists) {
+        updated = prev.filter(f => f.id !== item.id);
+      } else {
+        updated = [newItem, ...prev].slice(0, 50);
+      }
+      localStorage.setItem('chat_favorites', JSON.stringify(updated));
       return updated;
     });
   };
 
-  const fetchGifs = async (query) => {
+  const fetchGifs = async (query = 'trending') => {
     setLoadingGifs(true);
     try {
-      const endpoint = query === 'trending' 
+      const endpoint = !query || query === 'trending'
         ? `https://tenor.googleapis.com/v2/featured?key=${TENOR_API_KEY}&limit=12&client_key=chatapp_v2`
         : `https://tenor.googleapis.com/v2/search?key=${TENOR_API_KEY}&q=${query}&limit=12&client_key=chatapp_v2`;
       
@@ -64,9 +69,15 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
   };
 
   useEffect(() => {
+    if (activeTab === 'gif' && gifs.length === 0) {
+      fetchGifs('trending');
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab === 'gif') {
       const timeoutId = setTimeout(() => {
-        if (gifSearch.length > 2) fetchGifs(gifSearch);
+        if (gifSearch.length > 1) fetchGifs(gifSearch);
         else if (gifSearch === '') fetchGifs('trending');
       }, 500);
       return () => clearTimeout(timeoutId);
@@ -121,7 +132,11 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
         {activeTab === 'gif' && (
           <div className="gif-section">
             <div className="gif-grid">
-              {loadingGifs ? <div className="loader">...</div> : gifs.map(gif => (
+              {loadingGifs ? (
+                <div className="loader">Loading...</div>
+              ) : gifs.length === 0 ? (
+                <div className="empty-state">No GIFs found</div>
+              ) : gifs.map(gif => (
                 <img 
                   key={gif.id} 
                   src={gif.media_formats.tinygif.url} 
@@ -173,9 +188,9 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
           box-shadow: 0 20px 60px rgba(0,0,0,0.6);
           overflow: hidden;
           border: 1px solid #2e2e45;
-          animation: slideIn 0.2s ease-out;
+          animation: slideIn 0.15s ease-out;
         }
-        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
         .picker-header {
           padding: 12px 16px;
@@ -200,23 +215,33 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
         }
         .close-btn { background: none; border: none; color: #8888aa; cursor: pointer; font-size: 1.1rem; }
 
-        .picker-body { flex: 1; overflow-y: auto; padding-bottom: 10px; }
+        .picker-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 10px; }
         .section-label { font-size: 0.7rem; color: #7c6af7; font-weight: 800; text-transform: uppercase; padding: 15px 20px 10px; display: block; }
         
         .sticker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 10px 20px; }
         .sticker-wrapper { position: relative; aspect-ratio: 1; background: #252535; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
         .sticker-wrapper:hover { transform: scale(1.05); }
-        .sticker-wrapper img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
-        .fav-star { position: absolute; top: 4px; right: 4px; background: none; border: none; color: #55556a; font-size: 0.9rem; cursor: pointer; }
-        .fav-star.active { color: #f5a623; }
+        .sticker-wrapper img { width: 100%; height: 100%; object-fit: contain; padding: 5px; }
+        .gif-thumb { object-fit: cover !important; padding: 0 !important; }
 
-        .pack-nav { display: flex; gap: 10px; padding: 12px 20px; border-bottom: 1px solid #2e2e45; overflow-x: auto; margin-bottom: 10px; }
-        .pack-btn { background: #252535; border: 1px solid #2e2e45; border-radius: 15px; padding: 4px 12px; font-size: 0.75rem; color: #8888aa; white-space: nowrap; cursor: pointer; }
+        .fav-star { 
+          position: absolute; top: 4px; right: 4px; 
+          background: rgba(0,0,0,0.5); border: none; color: #fff; 
+          width: 24px; height: 24px; border-radius: 50%;
+          font-size: 0.8rem; cursor: pointer; 
+          display: flex; align-items: center; justify-content: center;
+          opacity: 0.5; transition: all 0.2s;
+        }
+        .fav-star.active { color: #f5a623; opacity: 1; background: rgba(0,0,0,0.7); }
+
+        .pack-nav { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid #2e2e45; overflow-x: auto; margin-bottom: 10px; }
+        .pack-btn { background: #252535; border: 1px solid #2e2e45; border-radius: 15px; padding: 4px 12px; font-size: 0.7rem; color: #8888aa; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
         .pack-btn.active { background: #7c6af7; color: white; border-color: #7c6af7; }
 
         .emoji-section { height: 100%; }
         .gif-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
-        .gif-item { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; cursor: pointer; }
+        .gif-item { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; cursor: pointer; transition: transform 0.2s; }
+        .gif-item:hover { transform: scale(1.02); }
 
         .picker-footer {
           display: flex;
@@ -232,13 +257,13 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onStickerSelect
           border: none;
           cursor: pointer;
           filter: grayscale(1);
-          opacity: 0.5;
+          opacity: 0.6;
           transition: all 0.2s;
         }
         .nav-tab.active { filter: grayscale(0); opacity: 1; transform: scale(1.1); }
-        .loader { color: #8888aa; text-align: center; padding: 20px; }
+        .loader { color: #8888aa; text-align: center; padding: 40px; font-size: 0.8rem; }
         
-        .empty-state { grid-column: span 3; color: #55556a; text-align: center; padding: 40px 0; font-size: 0.8rem; }
+        .empty-state { grid-column: span 3; color: #55556a; text-align: center; padding: 60px 0; font-size: 0.85rem; }
         @media (max-width: 480px) {
           .whatsapp-picker { width: 100%; height: 450px; border-radius: 24px 24px 0 0; }
         }

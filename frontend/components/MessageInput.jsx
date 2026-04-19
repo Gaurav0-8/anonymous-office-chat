@@ -112,8 +112,8 @@ export default function MessageInput({ onSend, onImageSend, disabled, chatId }) 
                 await onImageSend(url, ''); 
                 setShowRich(false); 
               }}
-              onStickerSelect={async (content) => { 
-                await onSend(content); 
+              onStickerSelect={async (url) => { 
+                await onImageSend(url, ''); 
                 setShowRich(false); 
               }}
               onClose={() => setShowRich(false)}
