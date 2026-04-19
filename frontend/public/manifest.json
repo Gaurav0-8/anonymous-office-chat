@@ -21,16 +21,7 @@
       "type": "image/png",
       "purpose": "any"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Desktop Chat View"
-    }
-  ],
+
   "shortcuts": [
     {
       "name": "Open Chat",

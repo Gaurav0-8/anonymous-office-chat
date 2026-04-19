@@ -98,7 +98,7 @@ func createTables() error {
 		user_id     INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
 		emoji       TEXT NOT NULL,
 		created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(message_id, user_id)
+		UNIQUE(message_id, user_id, emoji)
 	);
 
 	CREATE TABLE IF NOT EXISTS image_files (

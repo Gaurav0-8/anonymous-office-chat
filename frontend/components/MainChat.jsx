@@ -153,7 +153,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     } catch (err) { console.error('Forward failed:', err); }
   };
 
-  const isOwnMessage = (msg) => msg.sender_id === currentUser.user_id;
+  const isOwnMessage = (msg) => String(msg.sender_id) === String(currentUser?.user_id);
 
   return (
     <div className="teams-chat insta-vibe">
