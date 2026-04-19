@@ -21,7 +21,14 @@ func SetupMessageRoutes(app *fiber.App) {
 }
 
 func createMessage(c *fiber.Ctx) error {
-	userID, _, displayName, _ := mw.GetCurrentUser(c)
+	userID, _, _, _ := mw.GetCurrentUser(c)
+
+	// Fetch fresh display name from DB to prevent stale names from old JWT tokens
+	var displayName string
+	err := db.DB.QueryRow("SELECT display_name FROM users WHERE user_id = ?", userID).Scan(&displayName)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to verify user")
+	}
 
 	var req struct {
 		ChatID          int    `json:"chat_id"`
@@ -88,7 +95,11 @@ func createMessage(c *fiber.Ctx) error {
 
 func toggleReaction(c *fiber.Ctx) error {
 	msgID, _ := c.ParamsInt("message_id")
-	userID, _, displayName, _ := mw.GetCurrentUser(c)
+	userID, _, _, _ := mw.GetCurrentUser(c)
+
+	// Fetch fresh display name from DB to prevent stale names from old JWT tokens
+	var displayName string
+	_ = db.DB.QueryRow("SELECT display_name FROM users WHERE user_id = ?", userID).Scan(&displayName)
 	var req struct { Emoji string `json:"emoji"` }
 	if err := c.BodyParser(&req); err != nil { return err }
 
