@@ -41,6 +41,7 @@ func CreateSchema() error {
 		file_path  TEXT NOT NULL,
 		width      INTEGER,
 		height     INTEGER,
+		is_sticker INTEGER DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -116,8 +117,8 @@ func DeleteOldMessages() error {
 	rows, err := DB.Query(`
 		SELECT m.message_id, i.file_id, i.file_path
 		FROM messages m
-		LEFT JOIN image_files i ON m.image_file_id = i.file_id
-		WHERE m.sent_at < ?
+		INNER JOIN image_files i ON m.image_file_id = i.file_id
+		WHERE m.sent_at < ? AND i.is_sticker = 0
 	`, cutoff)
 	if err != nil {
 		return err

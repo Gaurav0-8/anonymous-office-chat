@@ -24,6 +24,7 @@ const maxUploadSizeMB = 10
 func SetupImageRoutes(app *fiber.App) {
 	imgs := app.Group("/images", mw.AuthRequired())
 	imgs.Post("/upload", uploadImage)
+	imgs.Get("/stickers", listStickers)
 	imgs.Post("/message", sendImageMessage)
 	imgs.Post("/:file_id/read", markImageRead)
 	// Static file serving is handled by app.Static("/uploads", ...) in main.go
@@ -35,6 +36,8 @@ func uploadImage(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "No file uploaded")
 	}
+
+	isSticker := c.FormValue("is_sticker") == "true"
 
 	// Size check
 	if file.Size > maxUploadSizeMB*1024*1024 {
@@ -74,8 +77,8 @@ func uploadImage(c *fiber.Ctx) error {
 
 	// Store metadata
 	_, err = db.DB.Exec(
-		"INSERT INTO image_files (file_id, file_path, width, height) VALUES (?, ?, ?, ?)",
-		fileID, filePath, width, height,
+		"INSERT INTO image_files (file_id, file_path, width, height, is_sticker) VALUES (?, ?, ?, ?, ?)",
+		fileID, filePath, width, height, isSticker,
 	)
 	if err != nil {
 		os.Remove(filePath)
@@ -87,7 +90,37 @@ func uploadImage(c *fiber.Ctx) error {
 		"url":      "/uploads/" + fileName,
 		"width":    width,
 		"height":   height,
+		"is_sticker": isSticker,
 	})
+}
+
+// GET /images/stickers — returns list of all community stickers
+func listStickers(c *fiber.Ctx) error {
+	rows, err := db.DB.Query("SELECT file_id, file_path, width, height FROM image_files WHERE is_sticker = 1 ORDER BY created_at DESC")
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to query stickers")
+	}
+	defer rows.Close()
+
+	var stickers []fiber.Map
+	for rows.Next() {
+		var id, path string
+		var w, h *int
+		rows.Scan(&id, &path, &w, &h)
+		
+		// Convert path to URL
+		ext := filepath.Ext(path)
+		url := "/uploads/" + id + ext
+
+		stickers = append(stickers, fiber.Map{
+			"id":     id,
+			"url":    url,
+			"width":  w,
+			"height": h,
+		})
+	}
+
+	return c.JSON(stickers)
 }
 
 // POST /images/message — send a message that includes an image (with optional text)

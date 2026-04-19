@@ -76,6 +76,7 @@ export const imagesAPI = {
   }),
   sendImageMessage: (chatId, fileId, messageText = '') =>
     api.post('/images/message', { chat_id: chatId, file_id: fileId, message_text: messageText }),
+  getStickers: () => api.get('/images/stickers'),
   markRead: (fileId) => api.post(`/images/${fileId}/read`),
   getUrl: (fileId, ext = 'jpg') => `${API_URL}/uploads/${fileId}.${ext}`,
 };
