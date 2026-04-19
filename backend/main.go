@@ -60,13 +60,16 @@ func main() {
 
 	// Middleware
 	app.Use(logger.New())
+	
+	// FIXED CORS: specific origins required when withCredentials is true
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+		AllowOrigins: "https://chat.gauravmathur.in,https://gauravmathur.in,http://localhost:3000",
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Admin-Setup-Token",
+		AllowCredentials: true,
 	}))
 
-	// Serve uploaded files statically (e.g., /uploads/abc123.jpg)
+	// Serve uploaded files statically
 	app.Static("/uploads", uploadDir)
 
 	// Register all route groups
