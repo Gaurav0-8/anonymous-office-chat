@@ -339,7 +339,8 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         .bubble { 
           padding: 10px 14px; border-radius: 18px; position: relative; 
           font-size: 0.95rem; line-height: 1.4; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
-          width: fit-content; max-width: 100%;
+          width: fit-content !important; max-width: 100%;
+          display: table;
         }
         .msg-row.own .bubble { margin-left: auto; }
         .bubble.own { background: linear-gradient(135deg, #7c6af7, #a855f7); color: white; border-bottom-right-radius: 4px; }
@@ -378,7 +379,8 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
           border-radius: 6px;
           margin-bottom: 6px;
           font-size: 0.8rem;
-          max-width: 100%;
+          width: fit-content !important;
+          max-width: 320px;
           cursor: pointer;
         }
         .bubble.other .reply-quote-bar {
