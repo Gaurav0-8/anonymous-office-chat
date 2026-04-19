@@ -88,19 +88,25 @@ export default function InstallPrompt() {
             : 'Install ChatApp on your device for the best experience — fast, native-feeling, and always one tap away.'}
         </p>
 
-        <div className="install-prompt-actions">
-          {!isIOS && deferredPrompt && (
+          {!isIOS ? (
             <button className="install-btn primary" onClick={handleInstall}>
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
-              Install App
+              {deferredPrompt ? 'Install App' : 'How to Install'}
             </button>
-          )}
+          ) : null}
           <button className="install-btn secondary" onClick={handleDismiss}>
             Not Now
           </button>
         </div>
+
+        {!isIOS && !deferredPrompt && (
+          <div className="manual-hint">
+            <span className="hint-icon">💡</span> 
+            Click the <strong>Install Icon</strong> in your browser's address bar to add ChatApp to your PC.
+          </div>
+        )}
 
         {isIOS && (
           <div className="ios-instructions">
@@ -164,7 +170,23 @@ export default function InstallPrompt() {
           display: flex;
           gap: 10px;
           justify-content: center;
+          margin-bottom: 16px;
         }
+        .manual-hint {
+          background: rgba(124, 106, 247, 0.1);
+          border: 1px dashed rgba(124, 106, 247, 0.3);
+          border-radius: 12px;
+          padding: 12px;
+          font-size: 0.8rem;
+          color: #8888aa;
+          line-height: 1.4;
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          text-align: left;
+        }
+        .hint-icon { font-size: 1.1rem; }
+
         .install-btn {
           padding: 10px 22px;
           border-radius: 12px;
