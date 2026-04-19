@@ -88,6 +88,7 @@ export default function InstallPrompt() {
             : 'Install ChatApp on your device for the best experience — fast, native-feeling, and always one tap away.'}
         </p>
 
+        <div className="install-prompt-actions">
           {!isIOS ? (
             <button className="install-btn primary" onClick={handleInstall}>
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
