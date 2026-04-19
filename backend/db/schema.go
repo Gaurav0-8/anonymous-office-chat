@@ -85,7 +85,24 @@ func CreateSchema() error {
 	);
 	`
 	_, err := DB.Exec(schema)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Force migrations for existing databases
+	DB.Exec("ALTER TABLE messages ADD COLUMN parent_message_id INTEGER REFERENCES messages(message_id) ON DELETE SET NULL")
+	DB.Exec(`
+		CREATE TABLE IF NOT EXISTS message_reactions (
+			reaction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+			message_id  INTEGER NOT NULL REFERENCES messages(message_id) ON DELETE CASCADE,
+			user_id     INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+			emoji       TEXT NOT NULL,
+			created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(message_id, user_id)
+		);
+	`)
+	
+	return nil
 }
 
 // SeedMainChat ensures chat_id=1 (Main_Group_Chat) always exists

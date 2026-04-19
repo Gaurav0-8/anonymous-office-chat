@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
-// Using a fresh high-volume Giphy Key
-const GIPHY_API_KEY = '0UT9HBy9j9nrSAtCHp8UvFp6q7M6Q9YF';
+// Multi-Key Failover System
+const GIPHY_KEYS = ['dc6zaTOxFJmzC', '0UT9HBy9j9nrSAtCHp8UvFp6q7M6Q9YF', 'cwEZMAd8U7YscbyV7zUuK27y0YIuOkpT'];
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
   const [activeTab, setActiveTab] = useState('emoji');
@@ -14,36 +14,47 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // 🎬 Giphy Integration with Logging
   const fetchGifs = async (query = '') => {
     setLoading(true);
     setErrorMsg('');
-    console.log('[Giphy] Fetching GIFs for query:', query || 'trending');
     
+    // Attempt with multiple keys
+    for (const key of GIPHY_KEYS) {
+        try {
+          const endpoint = !query
+            ? `https://api.giphy.com/v1/gifs/trending?api_key=${key}&limit=20&rating=g`
+            : `https://api.giphy.com/v1/gifs/search?api_key=${key}&q=${encodeURIComponent(query)}&limit=20&rating=g&lang=en`;
+          
+          const res = await fetch(endpoint);
+          if (res.status === 401) continue; // Try next key
+          
+          const json = await res.json();
+          if (json.data) {
+            setGifs(json.data);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error(`Giphy Key ${key} failed`, err);
+        }
+    }
+
+    // Fallback if all Giphy keys fail
     try {
-      const endpoint = !query
-        ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=20&rating=g`
-        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=20&rating=g&lang=en`;
-      
-      const res = await fetch(endpoint);
-      console.log('[Giphy] Response status:', res.status);
-      
-      if (!res.ok) {
-        throw new Error(`Giphy API returned ${res.status}`);
-      }
-      
-      const json = await res.json();
-      console.log('[Giphy] Results found:', json.data?.length || 0);
-      
-      setGifs(json.data || []);
-      if (!json.data || json.data.length === 0) {
-        setErrorMsg('No GIFs found. Try another search.');
-      }
-    } catch (err) {
-      console.error('[Giphy] Error fetching GIFs:', err);
-      setErrorMsg('Failed to load GIFs. Check connection.');
+        const tenorKey = 'LIVDSRZULEUB';
+        const endpoint = `https://tenor.googleapis.com/v2/posts?key=${tenorKey}&limit=20&q=${query || 'trending'}`;
+        const res = await fetch(endpoint);
+        const json = await res.json();
+        const formatted = json.results?.map(r => ({
+            id: r.id,
+            images: { fixed_width_small: { url: r.media_formats?.tinygif?.url }, original: { url: r.media_formats?.gif?.url } }
+        })) || [];
+        setGifs(formatted);
+        if (formatted.length === 0) setErrorMsg('No GIFs found.');
+    } catch {
+        setErrorMsg('GIFs currently unavailable.');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -94,23 +105,20 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
           <div className="gif-section">
             <div className="gif-grid">
               {loading ? (
-                <div className="loader">⚡ Connecting to Giphy...</div>
+                <div className="loader">⚡ Connecting to GIF Engine...</div>
               ) : errorMsg ? (
                 <div className="empty-state">{errorMsg}</div>
               ) : gifs.map(gif => (
                 <img 
                   key={gif.id} 
-                  src={gif.images.fixed_width_small.url} 
-                  onClick={() => {
-                    console.log('[Giphy] Selecting GIF:', gif.images.original.url);
-                    onGifSelect(gif.images.original.url);
-                  }}
+                  src={gif.images?.fixed_width_small?.url} 
+                  onClick={() => onGifSelect(gif.images?.original?.url)}
                   className="gif-item"
                   alt=""
                 />
               ))}
             </div>
-            <div className="giphy-attribution">Powered by GIPHY</div>
+            <div className="giphy-attribution">Powered by GIPHY / Tenor</div>
           </div>
         )}
       </div>
