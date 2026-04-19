@@ -37,8 +37,15 @@ export default function InstallPrompt() {
     }
 
     // 4. CAPTURE INSTALL PROMPT (Android/Chrome/Edge)
+    if (window.globalDeferredPrompt) {
+        setDeferredPrompt(window.globalDeferredPrompt);
+        const dismissed = localStorage.getItem('pwa-install-dismissed');
+        if (!dismissed) setShowPrompt(true);
+    }
+
     const handler = (e) => {
       e.preventDefault();
+      window.globalDeferredPrompt = e;
       setDeferredPrompt(e);
       console.log('[PWA] BeforeInstallPromptEvent captured');
       const dismissed = localStorage.getItem('pwa-install-dismissed');

@@ -36,6 +36,13 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="mobile-web-app-capable" content="yes" />
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.globalDeferredPrompt = null;
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.globalDeferredPrompt = e;
+          });
+        `}} />
       </head>
       <body>
         <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}>
