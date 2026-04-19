@@ -12,6 +12,16 @@ export default function ChatPage() {
   const [user, setUser] = useState(null);
   const [activeChatId, setActiveChatId] = useState(1);
   const [activeChatType, setActiveChatType] = useState('group');
+
+  // Load from localStorage as early as possible
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedId = localStorage.getItem('last-active-chat-id');
+      const savedType = localStorage.getItem('last-active-chat-type');
+      if (savedId) setActiveChatId(parseInt(savedId));
+      if (savedType) setActiveChatType(savedType);
+    }
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const wsRef = useRef(null);
   const [wsReady, setWsReady] = useState(false);
@@ -41,17 +51,6 @@ export default function ChatPage() {
     }
     const parsedUser = JSON.parse(userData);
     setUser(parsedUser);
-
-    // Restore last active chat
-    const savedChatId = localStorage.getItem('last-active-chat-id');
-    const savedChatType = localStorage.getItem('last-active-chat-type');
-    if (savedChatId && savedChatType) {
-      setActiveChatId(parseInt(savedChatId));
-      setActiveChatType(savedChatType);
-    } else {
-      setActiveChatId(1);
-      setActiveChatType('group');
-    }
   }, [router]);
 
   // Persist session state
