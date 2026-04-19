@@ -165,9 +165,13 @@ func getChatMessages(c *fiber.Ctx) error {
 
 func getChatDetails(c *fiber.Ctx) error {
 	id, _ := c.ParamsInt("chat_id")
-	rows, _ := db.DB.Query("SELECT u.display_name FROM chat_participants cp JOIN users u ON cp.user_id = u.user_id WHERE cp.chat_id = ?", id)
+	rows, _ := db.DB.Query("SELECT u.user_id, u.display_name FROM chat_participants cp JOIN users u ON cp.user_id = u.user_id WHERE cp.chat_id = ?", id)
 	defer rows.Close()
-	var ps []string
-	for rows.Next() { var d string; rows.Scan(&d); ps = append(ps, d) }
+	var ps []fiber.Map
+	for rows.Next() { 
+		var uid int; var d string; 
+		rows.Scan(&uid, &d); 
+		ps = append(ps, fiber.Map{"user_id": uid, "display_name": d}) 
+	}
 	return c.JSON(fiber.Map{"chat_id": id, "participants": ps})
 }
