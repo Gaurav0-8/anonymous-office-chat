@@ -23,9 +23,12 @@ export default function WelcomePage() {
           {/* Feature Grid */}
           <div className="welcome-features">
             {[
-              { icon: '🛡️', title: 'Total Privacy', desc: 'No phone numbers or emails. Your workspace identity remains a secret.' },
-              { icon: '⏱️', title: '24h Memory', desc: 'Messages automatically dissolve every 24 hours. A fresh start every day.' },
-              { icon: '💼', title: 'Office Focused', desc: 'Securely connect with colleagues in a moderated, professional space.' },
+              { icon: '🛡️', title: 'Google-Only Access', desc: 'No passwords to create. No usernames to remember. 100% secure authentication with your Google account.' },
+              { icon: '✨', title: 'Pick Your Alias', desc: 'First time here? Just pick a display name. That is your forever identity in our private space.' },
+              { icon: '💬', title: 'Private Whispers', desc: 'Go beyond the main hall. Start secure 1-on-1 private chats with any colleague instantly.' },
+              { icon: '⏱️', title: '24h Persistence', desc: 'Context matters. We keep your messages for 24 hours before a fresh server reset every day.' },
+              { icon: '📲', title: 'Native PWA', desc: 'Install this chat directly to your phone or desktop home screen. Native speed, no App Store needed.' },
+              { icon: '🎭', title: 'Identity Hidden', desc: 'We take anonymity seriously. Your real name and email are never shared or visible.' },
             ].map((f, i) => (
               <div key={f.title} className="feature-card glass highlight" style={{ animationDelay: `${i * 0.15}s` }}>
                 <div className="feature-icon">{f.icon}</div>
