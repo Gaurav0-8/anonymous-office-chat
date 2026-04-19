@@ -30,6 +30,17 @@ func InitDB() error {
 		return err
 	}
 
+	// TEMPORARY: FORCE WIPE FOR PRODUCTION START
+	// Remove this block after the first successful boot
+	DB.Exec("DELETE FROM message_reactions")
+	DB.Exec("DELETE FROM message_reads")
+	DB.Exec("DELETE FROM messages")
+	DB.Exec("DELETE FROM chat_participants")
+	DB.Exec("DELETE FROM chats WHERE chat_id > 1")
+	DB.Exec("DELETE FROM users")
+	DB.Exec("DELETE FROM user_favorites")
+	DB.Exec("DELETE FROM image_files")
+
 	// Ensure system chat exists
 	_, _ = DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
 	
