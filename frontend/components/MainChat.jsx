@@ -13,12 +13,15 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
-  const [hoveredMsgId, setHoveredMsgId] = useState(null);
+  const [contextMsgId, setContextMsgId] = useState(null);
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
+  const [forwardMsg, setForwardMsg] = useState(null);
+  const [userList, setUserList] = useState([]);
   const [messageReaders, setMessageReaders] = useState({});
   const [focusTrigger, setFocusTrigger] = useState(0);
   const messagesEndRef = useRef(null);
   const reactionPickerRef = useRef(null);
+  const longPressTimer = useRef(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,21 +45,28 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    // Load all users for forwarding (limited to group participants for now)
+    chatsAPI.getMainChat().then(res => {
+        setUserList(res.data?.participants?.filter(p => p.user_id !== currentUser.user_id) || []);
+    });
+  }, [loadData, currentUser.user_id]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Click outside to close reaction picker
+  // Global click to close menus
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handleClick = (e) => {
+        if (!e.target.closest('.bubble-wrapper') && !e.target.closest('.insta-menu')) {
+            setContextMsgId(null);
+        }
         if (reactionPickerRef.current && !reactionPickerRef.current.contains(e.target)) {
             setReactionPickerMsgId(null);
         }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   useEffect(() => {
@@ -111,10 +121,41 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   };
 
   const handleReact = async (msgId, emoji) => {
+    // Optimistic Update for responsiveness
+    setMessages(prev => prev.map(m => {
+        if (m.message_id !== msgId) return m;
+        const exists = m.reactions?.find(r => r.emoji === emoji);
+        let updated = [...(m.reactions || [])];
+        if (exists?.me) {
+            updated = updated.map(r => r.emoji === emoji ? { ...r, count: r.count - 1, me: false } : r).filter(r => r.count > 0);
+        } else if (exists) {
+            updated = updated.map(r => r.emoji === emoji ? { ...r, count: r.count + 1, me: true } : r);
+        } else {
+            updated.push({ emoji, count: 1, me: true });
+        }
+        return { ...m, reactions: updated };
+    }));
+
     try {
         await messagesAPI.react(msgId, emoji);
         setReactionPickerMsgId(null);
+        setContextMsgId(null);
     } catch (err) { console.error('React failed:', err); }
+  };
+
+  const handleForward = async (targetUser) => {
+    if (!forwardMsg) return;
+    try {
+        const res = await chatsAPI.createPrivateChat(targetUser.user_id);
+        const targetChatId = res.data.chat_id;
+        if (forwardMsg.image_file_id) {
+            await imagesAPI.sendImageMessage(targetChatId, forwardMsg.image_file_id, forwardMsg.message_text);
+        } else {
+            await messagesAPI.send(targetChatId, forwardMsg.message_text);
+        }
+        setForwardMsg(null);
+        alert(`Forwarded to ${targetUser.display_name}`);
+    } catch (err) { console.error('Forward failed:', err); }
   };
 
   const fetchReaders = async (msgId) => {
@@ -125,20 +166,21 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
     } catch (e) { /* ignore */ }
   };
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
+  const handleLongPress = (msgId) => {
+    setContextMsgId(msgId);
+    fetchReaders(msgId);
   };
 
   const isOwnMessage = (msg) => msg.sender_id === currentUser.user_id;
 
   return (
-    <div className="teams-chat">
+    <div className="teams-chat insta-vibe">
       <div className="chat-header">
         <div className="chat-header-info">
-          <span className="group-avatar">🌐</span>
+          <span className="group-avatar">💬</span>
           <div>
-            <h2 className="title">Main Group Chat</h2>
-            <span className="subtitle">{participants.length} participants</span>
+            <h2 className="title">Office Chat</h2>
+            <span className="subtitle">{participants.length} Active Users</span>
           </div>
         </div>
       </div>
@@ -150,11 +192,16 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
           messages.map((msg) => (
             <div 
               key={msg.message_id} 
-              className={`msg-row ${isOwnMessage(msg) ? 'own' : 'other'}`}
-              onMouseEnter={() => { setHoveredMsgId(msg.message_id); fetchReaders(msg.message_id); }}
-              onMouseLeave={() => setHoveredMsgId(null)}
+              className={`msg-row ${isOwnMessage(msg) ? 'own' : 'other'} ${contextMsgId === msg.message_id ? 'highlight' : ''}`}
             >              
-              <div className="bubble-wrapper">
+              <div 
+                className="bubble-wrapper"
+                onContextMenu={(e) => { e.preventDefault(); handleLongPress(msg.message_id); }}
+                onMouseDown={() => { longPressTimer.current = setTimeout(() => handleLongPress(msg.message_id), 500); }}
+                onMouseUp={() => clearTimeout(longPressTimer.current)}
+                onTouchStart={() => { longPressTimer.current = setTimeout(() => handleLongPress(msg.message_id), 500); }}
+                onTouchEnd={() => clearTimeout(longPressTimer.current)}
+              >
                 <div className={`bubble ${isOwnMessage(msg) ? 'own' : 'other'}`}>
                   {!isOwnMessage(msg) && (
                     <span className="sender" onClick={() => onStartPrivateChat(msg.sender_id)}>
@@ -174,8 +221,6 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                         <MediaMessage fileId={msg.image_file_id} onOpen={(url) => setSelectedImage(url)} />
                         {msg.message_text && <p className="text with-image">{msg.message_text}</p>}
                      </div>
-                  ) : /^http.*\.(jpg|jpeg|gif|png|webp)(\?.*)?$/i.test(msg.message_text) ? (
-                    <img src={msg.message_text} onClick={() => setSelectedImage(msg.message_text)} className="sticker" alt="Chat inline media" />
                   ) : (
                     <p className="text">{msg.message_text}</p>
                   )}
@@ -187,42 +232,38 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                   </div>
 
                   {msg.reactions?.length > 0 && (
-                    <div className="reactions-pill-container">
+                    <div className="reactions-pill-container" onClick={() => handleLongPress(msg.message_id)}>
                       {msg.reactions.map(r => (
-                        <button key={r.emoji} className={`pill ${r.me ? 'me' : ''}`} onClick={() => handleReact(msg.message_id, r.emoji)}>
+                        <button key={r.emoji} className={`pill ${r.me ? 'me' : ''}`} onClick={(e) => { e.stopPropagation(); handleReact(msg.message_id, r.emoji); }}>
                           {r.emoji} {r.count}
                         </button>
                       ))}
                     </div>
                   )}
 
-                  <div className={`teams-hover-actions ${hoveredMsgId === msg.message_id || reactionPickerMsgId === msg.message_id ? 'visible' : ''}`}>
-                    <div className="emoji-row">
-                      {['👍', '❤️', '😂', '😮', '😢'].map(e => (
-                        <button key={e} onClick={() => handleReact(msg.message_id, e)}>{e}</button>
-                      ))}
-                      <div className="reaction-plus-wrapper" ref={reactionPickerMsgId === msg.message_id ? reactionPickerRef : null}>
-                        <button className="plus-btn" onClick={() => setReactionPickerMsgId(msg.message_id)}>＋</button>
-                        {reactionPickerMsgId === msg.message_id && (
-                            <div className="reaction-picker-popover">
-                                <RichPicker 
-                                    onEmojiSelect={(native) => handleReact(msg.message_id, native)} 
-                                    onGifSelect={(url) => handleReact(msg.message_id, url)}
-                                    onClose={() => setReactionPickerMsgId(null)}
-                                />
+                  {contextMsgId === msg.message_id && (
+                    <div className="insta-menu">
+                        <div className="insta-reaction-row">
+                            {['❤️', '🙌', '🔥', '😂', '😮', '😢'].map(e => (
+                                <button key={e} onClick={() => handleReact(msg.message_id, e)} className="insta-react-btn">{e}</button>
+                            ))}
+                            <button className="insta-react-btn plus" onClick={() => setReactionPickerMsgId(msg.message_id)}>＋</button>
+                             {reactionPickerMsgId === msg.message_id && (
+                                <div className="insta-full-picker" ref={reactionPickerRef}>
+                                    <RichPicker onEmojiSelect={(e) => handleReact(msg.message_id, e)} onGifSelect={() => {}} />
+                                </div>
+                            )}
+                        </div>
+                        <div className="insta-action-list">
+                            <button onClick={() => { setReplyTo(msg); setContextMsgId(null); setFocusTrigger(f => f + 1); }}>↩️ Reply</button>
+                            <button onClick={() => { setForwardMsg(msg); setContextMsgId(null); }}>➡️ Forward</button>
+                            <button onClick={() => { navigator.clipboard.writeText(msg.message_text); setContextMsgId(null); }}>📋 Copy</button>
+                            <div className="seen-list">
+                                👁️ {messageReaders[msg.message_id]?.length > 0 ? `Seen by ${messageReaders[msg.message_id].slice(0, 2).join(', ')}${messageReaders[msg.message_id].length > 2 ? '...' : ''}` : 'Sent'}
                             </div>
-                        )}
-                      </div>
+                        </div>
                     </div>
-                    <div className="icon-row">
-                       <button title="Reply" onClick={() => { setReplyTo(msg); setFocusTrigger(f => f + 1); }}>↩️</button>
-                       <button title="Copy" onClick={() => handleCopy(msg.message_text)}>📋</button>
-                       <div className="divider" />
-                       <div className="seen-by" title={messageReaders[msg.message_id]?.join(', ') || 'No readers yet'}>
-                         👁️ {messageReaders[msg.message_id]?.length || 0}
-                       </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -230,6 +271,26 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {forwardMsg && (
+          <div className="forward-modal-overlay">
+              <div className="forward-modal fade-in">
+                  <div className="modal-header">
+                      <h3>Forward to...</h3>
+                      <button onClick={() => setForwardMsg(null)}>✕</button>
+                  </div>
+                  <div className="user-list-scroll">
+                      {userList.map(u => (
+                          <div key={u.user_id} className="user-item" onClick={() => handleForward(u)}>
+                              <div className="user-avatar-small">{u.display_name[0]}</div>
+                              <div className="user-name-small">{u.display_name}</div>
+                              <button className="send-forward-btn">Send</button>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
 
       {replyTo && (
         <div className="reply-preview">
@@ -246,58 +307,50 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
       {selectedImage && <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />}
 
       <style jsx>{`
-        .teams-chat { display: flex; flex-direction: column; height: 100%; background: #111019; position: relative; overflow: hidden; width: 100%; }
-        .chat-header { padding: 12px 20px; background: #1a1926; border-bottom: 1px solid #2a293d; flex-shrink: 0; }
-        .chat-header-info { display: flex; align-items: center; gap: 12px; }
-        .group-avatar { font-size: 1.5rem; background: #2a293d; padding: 6px; border-radius: 8px; }
-        .title { font-size: 1rem; margin: 0; color: white; }
-        .subtitle { font-size: 0.75rem; color: #8888aa; }
-        .chat-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; display: flex; flex-direction: column; gap: 16px; width: 100%; }
-        .msg-row { display: flex; align-items: flex-end; gap: 10px; position: relative; width: 100%; }
-        .msg-row.own { flex-direction: row-reverse; }
-        .bubble-wrapper { max-width: 75%; position: relative; }
-        .bubble { padding: 10px 14px; border-radius: 8px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        .bubble.own { background: #323145; color: white; }
-        .bubble.other { background: #232231; color: white; }
-        .sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; cursor: pointer; display: block; margin-bottom: 4px; }
-        .text { font-size: 0.95rem; margin: 0; line-height: 1.4; word-wrap: break-word; }
-        .text.with-image { margin-top: 8px; }
-        .reply-quote-bar { background: rgba(0,0,0,0.2); border-left: 3px solid #7c6af7; padding: 8px; border-radius: 4px; margin-bottom: 8px; }
-        .quote-sender { font-size: 0.7rem; font-weight: 700; color: #7c6af7; display: block; }
-        .quote-text { font-size: 0.8rem; margin: 2px 0 0; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .teams-chat.insta-vibe { display: flex; flex-direction: column; height: 100%; background: #050510; position: relative; overflow: hidden; }
+        .chat-header { padding: 16px 20px; background: rgba(10,10,20,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .group-avatar { font-size: 1.6rem; border-radius: 50%; background: #7c6af7; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+        .chat-body { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         
-        .teams-hover-actions { position: absolute; top: -55px; right: 0; background: #1a1926; border: 1px solid #2a293d; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; }
-        .msg-row.own .teams-hover-actions { right: auto; left: 0; }
-        .teams-hover-actions.visible { opacity: 1; pointer-events: auto; transform: translateY(-5px); }
+        .msg-row { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .msg-row.highlight { transform: scale(0.98); opacity: 0.8; }
+        .bubble-wrapper { cursor: pointer; -webkit-tap-highlight-color: transparent; }
         
-        .emoji-row { display: flex; gap: 8px; padding: 4px; border-bottom: 1px solid #2a293d; align-items: center; }
-        .emoji-row button { background: none; border: none; font-size: 1.3rem; cursor: pointer; transition: transform 0.1s; padding: 2px; }
-        .emoji-row button:hover { transform: scale(1.2); }
-        .plus-btn { color: #8888aa; font-weight: bold; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05) !important; font-size: 0.8rem !important; margin-left: 4px; }
-        .plus-btn:hover { background: rgba(124, 106, 247, 0.2) !important; color: #7c6af7 !important; }
+        .bubble { padding: 12px 16px; border-radius: 22px; position: relative; transition: transform 0.2s; }
+        .bubble.own { background: linear-gradient(135deg, #7c6af7, #a855f7); color: white; border-bottom-right-radius: 4px; }
+        .bubble.other { background: #262635; color: white; border-bottom-left-radius: 4px; }
+        .sender { font-size: 0.75rem; font-weight: 700; color: #a855f7; margin-bottom: 4px; display: block; }
         
-        .reaction-plus-wrapper { position: relative; }
-        .reaction-picker-popover { position: absolute; bottom: 35px; right: 0; z-index: 2005; animation: popUp 0.15s ease-out; }
-        @keyframes popUp { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .insta-menu { position: absolute; bottom: calc(100% + 10px); left: 0; z-index: 1000; background: #1c1c28; border-radius: 18px; padding: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); min-width: 200px; }
+        .msg-row.own .insta-menu { left: auto; right: 0; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
+        .insta-reaction-row { display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px; justify-content: space-around; }
+        .insta-react-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; padding: 4px; }
+        .insta-react-btn:hover { transform: scale(1.3); }
+        .insta-react-btn.plus { font-size: 1.1rem; color: #888; background: rgba(255,255,255,0.05); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+        
+        .insta-action-list { display: flex; flex-direction: column; gap: 4px; }
+        .insta-action-list button { background: none; border: none; padding: 10px 14px; color: white; text-align: left; border-radius: 10px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; font-weight: 600; }
+        .insta-action-list button:hover { background: rgba(255,255,255,0.05); color: #7c6af7; }
+        .seen-list { font-size: 0.7rem; color: #666; padding: 8px 14px; font-style: italic; }
 
-        .icon-row { display: flex; align-items: center; gap: 12px; padding: 6px; }
-        .icon-row button { background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
-        .icon-row button:hover { opacity: 1; }
-        .divider { width: 1px; height: 16px; background: #2a293d; }
-        .seen-by { font-size: 0.75rem; color: #8888aa; display: flex; align-items: center; gap: 4px; cursor: help; }
-        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-        .pill { background: #111019; border: 1px solid #2a293d; border-radius: 12px; padding: 3px 8px; font-size: 0.75rem; color: #8888aa; cursor: pointer; transition: all 0.2s; }
-        .pill.me { border-color: #7c6af7; background: rgba(124, 106, 247, 0.1); color: #7c6af7; font-weight: 600; }
-        .pill:hover { background: #1a1926; transform: translateY(-1px); }
-        .meta { margin-top: 4px; text-align: right; }
-        .time { font-size: 0.65rem; color: #55556a; }
-        .reply-preview { background: #1a1926; border-left: 4px solid #7c6af7; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #2a293d; }
-        .preview-content { overflow: hidden; }
-        .preview-sender { font-size: 0.75rem; font-weight: 700; color: #7c6af7; }
-        .preview-text { font-size: 0.85rem; color: #8888aa; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .preview-close { background: none; border: none; color: white; cursor: pointer; padding: 4px; }
-        .sticker { max-width: 250px; border-radius: 8px; cursor: pointer; }
-        .media-attachment-container { display: flex; flex-direction: column; }
+        .reactions-pill-container { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .pill { background: rgba(255,255,255,0.08); border: none; border-radius: 12px; padding: 4px 10px; font-size: 0.75rem; color: white; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .pill.me { background: rgba(124, 106, 247, 0.3); border: 1px solid #7c6af7; }
+        
+        .forward-modal-overlay { position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .forward-modal { background: #1a1926; border-radius: 20px; width: 100%; max-width: 360px; overflow: hidden; border: 1px solid #2a293d; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid #2a293d; display: flex; justify-content: space-between; align-items: center; }
+        .user-list-scroll { max-height: 400px; overflow-y: auto; padding: 10px; }
+        .user-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+        .user-avatar-small { width: 32px; height: 32px; border-radius: 50%; background: #7c6af7; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        .user-item:hover { background: rgba(124,106,247,0.1); }
+        .send-forward-btn { margin-left: auto; background: #7c6af7; border: none; border-radius: 8px; color: white; padding: 4px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+        
+        .meta { margin-top: 6px; text-align: right; }
+        .time { font-size: 0.65rem; color: rgba(255,255,255,0.4); }
+        .insta-full-picker { position: absolute; bottom: 100%; left: 0; z-index: 10001; }
       `}</style>
     </div>
   );
