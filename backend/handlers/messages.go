@@ -51,6 +51,15 @@ func createMessage(c *fiber.Ctx) error {
 	messageID, _ := res.LastInsertId()
 	sentAt := time.Now()
 
+	// REAL-TIME QUOTE FIX: Fetch parent info if this is a reply
+	var pText, pSender *string
+	if req.ParentMessageID != nil {
+		_ = db.DB.QueryRow(`
+			SELECT m.message_text, u.display_name 
+			FROM messages m JOIN users u ON m.sender_id = u.user_id 
+			WHERE m.message_id = ?`, *req.ParentMessageID).Scan(&pText, &pSender)
+	}
+
 	pRows, _ := db.DB.Query("SELECT user_id FROM chat_participants WHERE chat_id = ?", req.ChatID)
 	defer pRows.Close()
 	var pids []int
@@ -67,7 +76,9 @@ func createMessage(c *fiber.Ctx) error {
 			"sender_id":         userID,
 			"sender_name":       displayName,
 			"message_text":      req.MessageText,
-			"parent_message_id": req.ParentMessageID,
+			"parent_id":         req.ParentMessageID,
+			"parent_text":       pText,
+			"parent_sender":     pSender,
 			"sent_at":           sentAt,
 		},
 	}, pids)
