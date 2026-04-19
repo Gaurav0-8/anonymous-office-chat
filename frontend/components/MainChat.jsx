@@ -14,6 +14,7 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
   const [replyTo, setReplyTo] = useState(null); // The message object being replied to
   const [hoveredMsgId, setHoveredMsgId] = useState(null);
   const [messageReaders, setMessageReaders] = useState({}); // { msgId: ["Name1", "Name2"] }
+  const [focusTrigger, setFocusTrigger] = useState(0); // Incremented to trigger focus
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = useCallback(() => {
@@ -192,7 +193,10 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
                       ))}
                     </div>
                     <div className="icon-row">
-                       <button title="Reply with Quote" onClick={() => setReplyTo(msg)}>↩️</button>
+                       <button title="Reply with Quote" onClick={() => { 
+                         setReplyTo(msg); 
+                         setFocusTrigger(prev => prev + 1); 
+                       }}>↩️</button>
                        <button title="Copy Text" onClick={() => handleCopy(msg.message_text)}>📋</button>
                        <div className="divider" />
                        <div className="seen-by" title={messageReaders[msg.message_id]?.join(', ') || 'No readers yet'}>
@@ -218,7 +222,13 @@ export default function MainChat({ currentUser, chatId, ws, wsReady, onStartPriv
         </div>
       )}
 
-      <MessageInput onSend={handleSend} onImageSend={handleImageSend} disabled={!wsReady} chatId={chatId} />
+      <MessageInput 
+        onSend={handleSend} 
+        onImageSend={handleImageSend} 
+        disabled={!wsReady} 
+        chatId={chatId} 
+        focusTrigger={focusTrigger}
+      />
 
       {selectedImage && <ImageModal src={selectedImage} onClose={() => setSelectedImage(null)} />}
 

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
-// Multi-Key Failover System
-const GIPHY_KEYS = ['dc6zaTOxFJmzC', '0UT9HBy9j9nrSAtCHp8UvFp6q7M6Q9YF', 'cwEZMAd8U7YscbyV7zUuK27y0YIuOkpT'];
+// Tenor is the most stable public provider for Chatapp
+const TENOR_API_KEY = 'LIVDSRZULEUB';
+const GIPHY_KEYS = ['dc6zaTOxFJmzC', '0UT9HBy9j9nrSAtCHp8UvFp6q7M6Q9YF'];
 
 export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
   const [activeTab, setActiveTab] = useState('emoji');
@@ -18,7 +19,30 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
     setLoading(true);
     setErrorMsg('');
     
-    // Attempt with multiple keys
+    // 🎬 Primary: Tenor (High Uptime)
+    try {
+        const endpoint = `https://tenor.googleapis.com/v2/posts?key=${TENOR_API_KEY}&limit=20&q=${query || 'trending'}`;
+        const res = await fetch(endpoint);
+        if (res.ok) {
+            const json = await res.json();
+            const formatted = json.results?.map(r => ({
+                id: r.id,
+                images: { 
+                    fixed_width_small: { url: r.media_formats?.tinygif?.url }, 
+                    original: { url: r.media_formats?.gif?.url } 
+                }
+            })) || [];
+            if (formatted.length > 0) {
+                setGifs(formatted);
+                setLoading(false);
+                return;
+            }
+        }
+    } catch (err) {
+        console.warn('Tenor failed, trying Giphy fallback...', err);
+    }
+
+    // 🎬 Fallback: Giphy
     for (const key of GIPHY_KEYS) {
         try {
           const endpoint = !query
@@ -26,36 +50,19 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
             : `https://api.giphy.com/v1/gifs/search?api_key=${key}&q=${encodeURIComponent(query)}&limit=20&rating=g&lang=en`;
           
           const res = await fetch(endpoint);
-          if (res.status === 401) continue; // Try next key
+          if (res.status === 401) continue;
           
           const json = await res.json();
-          if (json.data) {
+          if (json.data && json.data.length > 0) {
             setGifs(json.data);
             setLoading(false);
             return;
           }
-        } catch (err) {
-          console.error(`Giphy Key ${key} failed`, err);
-        }
+        } catch {}
     }
 
-    // Fallback if all Giphy keys fail
-    try {
-        const tenorKey = 'LIVDSRZULEUB';
-        const endpoint = `https://tenor.googleapis.com/v2/posts?key=${tenorKey}&limit=20&q=${query || 'trending'}`;
-        const res = await fetch(endpoint);
-        const json = await res.json();
-        const formatted = json.results?.map(r => ({
-            id: r.id,
-            images: { fixed_width_small: { url: r.media_formats?.tinygif?.url }, original: { url: r.media_formats?.gif?.url } }
-        })) || [];
-        setGifs(formatted);
-        if (formatted.length === 0) setErrorMsg('No GIFs found.');
-    } catch {
-        setErrorMsg('GIFs currently unavailable.');
-    } finally {
-        setLoading(false);
-    }
+    setErrorMsg('GIFs currently unavailable.');
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -78,7 +85,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
           <span className="search-icon">🔍</span>
           <input 
             type="text" 
-            placeholder={activeTab === 'gif' ? "Search Giphy..." : "Search emojis..."}
+            placeholder={activeTab === 'gif' ? "Search Tenor GIFs..." : "Search emojis..."}
             value={gifSearch}
             onChange={(e) => setGifSearch(e.target.value)}
           />
@@ -118,7 +125,7 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
                 />
               ))}
             </div>
-            <div className="giphy-attribution">Powered by GIPHY / Tenor</div>
+            <div className="giphy-attribution">Powered by Tenor / GIPHY</div>
           </div>
         )}
       </div>
@@ -144,7 +151,6 @@ export default function RichPicker({ onEmojiSelect, onGifSelect, onClose }) {
         .nav-tab.active { background: #7c6af7; color: white; border-color: #7c6af7; }
         .loader { color: #8888aa; text-align: center; padding: 40px; font-size: 0.8rem; grid-column: span 2; }
         .empty-state { grid-column: span 2; color: #55556a; text-align: center; padding: 50px 0; font-size: 0.8rem; }
-        @media (max-width: 480px) { .whatsapp-picker { width: 100%; height: 450px; border-radius: 24px 24px 0 0; } }
       `}</style>
     </div>
   );
