@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chatapp-v1';
+const CACHE_NAME = 'chatapp-v2';
 const STATIC_ASSETS = [
   '/',
   '/login',

@@ -10,6 +10,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (window.location.search.includes('reset')) {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('Local storage wiped clean.');
+    }
+  }, []);
+
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       setLoading(true);
