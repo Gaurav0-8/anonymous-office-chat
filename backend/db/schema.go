@@ -30,6 +30,19 @@ func InitDB() error {
 		return err
 	}
 
+	// Seeding for project tracker if empty
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := seedTracker(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
 	// Ensure system chat exists
 	_, _ = DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
 	
@@ -120,6 +133,38 @@ func createTables() error {
 		media_url TEXT NOT NULL,
 		media_type TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS tracker_categories (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		color TEXT NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS tracker_tasks (
+		id TEXT PRIMARY KEY,
+		category_id TEXT NOT NULL REFERENCES tracker_categories(id) ON DELETE CASCADE,
+		row_id INTEGER NOT NULL,
+		title TEXT NOT NULL,
+		owner TEXT NOT NULL,
+		start_date TEXT NOT NULL,
+		duration INTEGER NOT NULL,
+		progress INTEGER NOT NULL,
+		status TEXT NOT NULL,
+		due_date TEXT NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS tracker_requests (
+		id TEXT PRIMARY KEY,
+		category_id TEXT NOT NULL REFERENCES tracker_categories(id) ON DELETE CASCADE,
+		task_id TEXT NOT NULL REFERENCES tracker_tasks(id) ON DELETE CASCADE,
+		task_title TEXT NOT NULL,
+		field TEXT NOT NULL,
+		old_value INTEGER NOT NULL,
+		new_value INTEGER NOT NULL,
+		requested_by INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+		requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		status TEXT NOT NULL DEFAULT 'pending'
 	);
 	`
 	_, err := DB.Exec(schema)

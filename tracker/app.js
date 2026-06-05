@@ -6,12 +6,13 @@
    ============================================================= */
 
 // ─── CONSTANTS ────────────────────────────────────────────────
-const CATS_KEY  = 'prot_cats_v1';
-const REQS_KEY  = 'prot_reqs_v1';
 const AUTH_KEY  = 'prot_auth_v1';
-const ADMIN_PW  = 'Tracker-Protiviti@123';
 const GOOGLE_ID = '925088269180-vt0u3glirlq5k27mr0kau2n14b46t2tv.apps.googleusercontent.com';
 const DAY_W     = 30;   // px per Gantt day column
+
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8080'
+  : 'https://api-chat.gauravmathur.in';
 
 // ─── STATE ────────────────────────────────────────────────────
 const S = {
@@ -32,26 +33,65 @@ const fmtD     = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', 
 const uid      = () => 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 const esc      = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
-// ─── STORAGE ──────────────────────────────────────────────────
-function boot() {
-  const raw = localStorage.getItem(CATS_KEY);
-  if (raw) {
-    S.cats = JSON.parse(raw);
-  } else {
-    S.cats = INITIAL_DATA.map(cat => ({
-      ...cat,
-      tasks: cat.tasks.map(t => ({ ...t, dueDate: calcDue(t.startDate, t.duration) }))
-    }));
-    saveCats();
+// ─── API HELPER ───────────────────────────────────────────────
+async function apiCall(endpoint, options = {}) {
+  const token = localStorage.getItem('prot_auth_v1_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
-  const rRaw = localStorage.getItem(REQS_KEY);
-  S.requests = rRaw ? JSON.parse(rRaw) : [];
+  
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('prot_auth_v1_token');
+    localStorage.removeItem(AUTH_KEY);
+    S.auth = null;
+    render();
+    throw new Error('Unauthorized or session expired');
+  }
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `HTTP error ${res.status}`);
+  }
+
+  if (res.status === 204) return null;
+  return res.json().catch(() => ({}));
+}
+
+// ─── STORAGE & DATA LOADING ───────────────────────────────────
+async function boot() {
   const aRaw = localStorage.getItem(AUTH_KEY);
   S.auth = aRaw ? JSON.parse(aRaw) : null;
+  if (S.auth) {
+    try {
+      await loadData();
+    } catch {
+      // Handled inside apiCall (auto-logout on 401)
+    }
+  }
 }
-const saveCats = () => localStorage.setItem(CATS_KEY, JSON.stringify(S.cats));
-const saveReqs = () => localStorage.setItem(REQS_KEY, JSON.stringify(S.requests));
-const saveAuth = () => S.auth ? localStorage.setItem(AUTH_KEY, JSON.stringify(S.auth)) : localStorage.removeItem(AUTH_KEY);
+
+async function loadData() {
+  try {
+    S.cats = await apiCall('/tracker/categories');
+    if (S.auth && S.auth.role === 'admin') {
+      S.requests = await apiCall('/tracker/requests');
+    } else {
+      S.requests = [];
+    }
+  } catch (err) {
+    console.error('Failed to load tracker data:', err);
+    toast('Failed to load tracker data', 'error');
+  }
+}
 
 // ─── DATA HELPERS ─────────────────────────────────────────────
 const findCat  = id => S.cats.find(c => c.id === id);
@@ -59,90 +99,212 @@ const findTask = (catId, taskId) => findCat(catId)?.tasks.find(t => t.id === tas
 const pendingCount = () => S.requests.filter(r => r.status === 'pending').length;
 
 // ─── ADMIN CRUD ───────────────────────────────────────────────
-function updateTask(catId, taskId, patch) {
+async function updateTask(catId, taskId, patch) {
   const t = findTask(catId, taskId);
   if (!t) return;
-  Object.assign(t, patch);
-  if ('startDate' in patch || 'duration' in patch) t.dueDate = calcDue(t.startDate, t.duration);
-  saveCats(); render();
+  const merged = {
+    category_id: catId,
+    title: t.title,
+    owner: t.owner,
+    startDate: t.startDate,
+    duration: t.duration,
+    progress: t.progress,
+    status: t.status,
+    ...patch,
+  };
+  try {
+    await apiCall(`/tracker/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(merged),
+    });
+    await loadData();
+    render();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
-function addTaskTo(catId, data) {
-  const cat = findCat(catId);
-  if (!cat) return;
-  const maxRow = cat.tasks.reduce((m, t) => Math.max(m, t.rowId), 0);
-  cat.tasks.push({ id: uid(), rowId: maxRow + 1, dueDate: calcDue(data.startDate, data.duration), ...data });
-  saveCats(); render();
+async function addTaskTo(catId, data) {
+  try {
+    await apiCall('/tracker/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        category_id: catId,
+        title: data.title,
+        owner: data.owner || '',
+        startDate: data.startDate,
+        duration: Number(data.duration),
+        progress: Number(data.progress) || 0,
+        status: data.status,
+      }),
+    });
+    await loadData();
+    render();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
-function removeTask(catId, taskId, skipConfirm) {
+async function removeTask(catId, taskId, skipConfirm) {
   if (!skipConfirm && !confirm('Delete this task?')) return;
-  const cat = findCat(catId);
-  if (!cat) return;
-  cat.tasks = cat.tasks.filter(t => t.id !== taskId);
-  cat.tasks.forEach((t, i) => (t.rowId = i + 1));
-  saveCats(); render();
+  try {
+    await apiCall(`/tracker/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+    await loadData();
+    render();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
-function addCat(name, color) {
-  S.cats.push({ id: uid(), name, color: color || '#6b7280', tasks: [] });
-  saveCats(); render();
+async function addCat(name, color) {
+  try {
+    await apiCall('/tracker/categories', {
+      method: 'POST',
+      body: JSON.stringify({ name, color }),
+    });
+    await loadData();
+    render();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
-function updateCat(catId, patch) {
+
+async function updateCat(catId, patch) {
   const c = findCat(catId);
-  if (c) { Object.assign(c, patch); saveCats(); render(); }
+  if (!c) return;
+  const merged = { name: c.name, color: c.color, ...patch };
+  try {
+    await apiCall(`/tracker/categories/${catId}`, {
+      method: 'PUT',
+      body: JSON.stringify(merged),
+    });
+    await loadData();
+    render();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
-function removeCat(catId) {
+
+async function removeCat(catId) {
   if (!confirm('Delete this category and ALL its tasks?')) return;
-  S.cats = S.cats.filter(c => c.id !== catId);
-  saveCats(); render();
+  try {
+    await apiCall(`/tracker/categories/${catId}`, {
+      method: 'DELETE',
+    });
+    await loadData();
+    render();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 // ─── CHANGE REQUESTS ──────────────────────────────────────────
-function submitReq(catId, taskId, taskTitle, field, oldVal, newVal) {
-  S.requests.push({
-    id: uid(), catId, taskId, taskTitle, field,
-    oldValue: oldVal, newValue: newVal,
-    requestedBy: S.auth.user,
-    requestedAt: new Date().toISOString(),
-    status: 'pending',
-  });
-  saveReqs(); render();
-  toast('Request submitted — waiting for admin approval', 'success');
+async function submitReq(catId, taskId, taskTitle, field, oldVal, newVal) {
+  try {
+    await apiCall('/tracker/requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        category_id: catId,
+        task_id: taskId,
+        task_title: taskTitle,
+        field: field,
+        old_value: Number(oldVal),
+        new_value: Number(newVal),
+      }),
+    });
+    await loadData();
+    render();
+    toast('Request submitted — waiting for admin approval', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
-function approveReq(reqId) {
-  const req = S.requests.find(r => r.id === reqId);
-  if (!req || req.status !== 'pending') return;
-  updateTask(req.catId, req.taskId, { [req.field]: Number(req.newValue) });
-  req.status = 'approved';
-  saveReqs(); render();
-  toast('Request approved ✅', 'success');
+async function approveReq(reqId) {
+  try {
+    await apiCall(`/tracker/requests/${reqId}/approve`, {
+      method: 'PUT',
+    });
+    await loadData();
+    render();
+    toast('Request approved ✅', 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
-function rejectReq(reqId) {
-  const req = S.requests.find(r => r.id === reqId);
-  if (!req) return;
-  req.status = 'rejected';
-  saveReqs(); render();
-  toast('Request rejected', 'info');
+async function rejectReq(reqId) {
+  try {
+    await apiCall(`/tracker/requests/${reqId}/reject`, {
+      method: 'PUT',
+    });
+    await loadData();
+    render();
+    toast('Request rejected', 'info');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────
-function loginAdmin(pw) {
-  if (pw !== ADMIN_PW) return false;
-  S.auth = { role: 'admin', user: { name: 'Admin', email: 'admin@protiviti.com' } };
-  saveAuth(); render(); return true;
-}
-function loginGoogle(credential) {
+async function loginAdmin(pw) {
   try {
-    const payload = JSON.parse(atob(credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-    S.auth = { role: 'user', user: { name: payload.name, email: payload.email, picture: payload.picture } };
-    saveAuth(); render(); return true;
-  } catch { return false; }
+    const res = await apiCall('/auth/tracker/admin', {
+      method: 'POST',
+      body: JSON.stringify({ password: pw }),
+    });
+    
+    localStorage.setItem('prot_auth_v1_token', res.access_token);
+    S.auth = { role: res.user.role, user: { name: res.user.display_name, email: 'admin@protiviti.com' } };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(S.auth));
+    
+    await loadData();
+    render();
+    return true;
+  } catch (err) {
+    const errEl = document.getElementById('adminErr');
+    if (errEl) {
+      errEl.textContent = err.message || 'Incorrect password. Please try again.';
+      errEl.style.display = 'block';
+    }
+    const inp = document.getElementById('adminPw');
+    if (inp) {
+      inp.classList.remove('error-shake');
+      void inp.offsetWidth; // reflow
+      inp.classList.add('error-shake');
+    }
+    return false;
+  }
 }
+
+async function loginGoogle(credential) {
+  try {
+    const res = await apiCall('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ id_token: credential }),
+    });
+    
+    localStorage.setItem('prot_auth_v1_token', res.access_token);
+    S.auth = { role: res.user.role, user: { name: res.user.display_name, email: res.user.email || '' } };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(S.auth));
+    
+    await loadData();
+    render();
+    return true;
+  } catch (err) {
+    toast(err.message || 'Google Sign-In failed', 'error');
+    return false;
+  }
+}
+
 function logout() {
-  S.auth = null; S.adminOpen = false; saveAuth(); render();
+  localStorage.removeItem('prot_auth_v1_token');
+  localStorage.removeItem(AUTH_KEY);
+  S.auth = null;
+  S.adminOpen = false;
+  render();
 }
 
 // ─── GANTT CALCULATIONS ───────────────────────────────────────
@@ -239,14 +401,10 @@ function renderLanding() {
   const btn = document.getElementById('adminLoginBtn');
   const inp = document.getElementById('adminPw');
   const err = document.getElementById('adminErr');
-  btn.addEventListener('click', () => {
-    if (!loginAdmin(inp.value)) {
-      err.textContent = 'Incorrect password. Please try again.';
-      err.style.display = 'block';
-      inp.classList.remove('error-shake');
-      void inp.offsetWidth; // reflow
-      inp.classList.add('error-shake');
-    }
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    await loginAdmin(inp.value);
+    btn.disabled = false;
   });
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
 
@@ -792,7 +950,7 @@ function render() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  boot();
+document.addEventListener('DOMContentLoaded', async () => {
+  await boot();
   render();
 });

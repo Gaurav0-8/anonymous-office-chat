@@ -51,7 +51,7 @@ func main() {
 	
 	// FIXED CORS: specific origins required when withCredentials is true
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://chat.gauravmathur.in,https://gauravmathur.in,http://localhost:3000",
+		AllowOrigins: "https://chat.gauravmathur.in,https://gauravmathur.in,http://localhost:3000,https://tracker.gauravmathur.in,http://localhost:3001,http://localhost:5500",
 		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Admin-Setup-Token",
 		AllowCredentials: true,
@@ -68,6 +68,7 @@ func main() {
 	handlers.SetupImageRoutes(app)
 	handlers.SetupFavoriteRoutes(app)
 	handlers.SetupAdminRoutes(app)
+	handlers.SetupTrackerRoutes(app)
 	ws.SetupWSRoute(app)
 
 	// Health check
