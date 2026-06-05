@@ -121,6 +121,7 @@ func googleLogin(c *fiber.Ctx) error {
 			"username":     user.Username,
 			"display_name": user.DisplayName,
 			"role":         user.Role,
+			"email":        user.Email,
 		},
 	})
 }

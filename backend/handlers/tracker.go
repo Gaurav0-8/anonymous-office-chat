@@ -411,7 +411,7 @@ func getChangeRequests(c *fiber.Ctx) error {
 
 		req.RequestedAt = requestedAt
 		req.RequestedBy = RequesterDetail{
-			Name:  displayName,
+			Name:  email,
 			Email: email,
 		}
 		if avatarURL.Valid {

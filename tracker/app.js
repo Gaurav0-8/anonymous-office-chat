@@ -287,7 +287,7 @@ async function loginGoogle(credential) {
     });
     
     localStorage.setItem('prot_auth_v1_token', res.access_token);
-    S.auth = { role: res.user.role, user: { name: res.user.display_name, email: res.user.email || '' } };
+    S.auth = { role: res.user.role, user: { name: res.user.email || res.user.display_name, email: res.user.email || '' } };
     localStorage.setItem(AUTH_KEY, JSON.stringify(S.auth));
     
     await loadData();
