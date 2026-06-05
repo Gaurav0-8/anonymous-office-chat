@@ -110,17 +110,26 @@ func trackerAdminLogin(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusUnauthorized, "Incorrect password")
 	}
 
-	// Ensure admin user exists in DB with ID 9999 so session validation works
-	_, err := db.DB.Exec(
-		`INSERT OR IGNORE INTO users (user_id, username, display_name, email, role) 
-		 VALUES (9999, 'tracker_admin', 'Admin', 'admin@protiviti.com', 'admin')`,
-	)
-	if err != nil {
-		log.Printf("[TrackerAuth] Failed to ensure admin user: %v", err)
-		return fiber.NewError(fiber.StatusInternalServerError, "Database error initializing admin session")
+	// Dynamically query or insert admin user to avoid hardcoded ID conflicts
+	var userID int
+	err := db.DB.QueryRow("SELECT user_id FROM users WHERE username = 'tracker_admin'").Scan(&userID)
+	if err == sql.ErrNoRows {
+		res, err := db.DB.Exec(
+			`INSERT INTO users (username, display_name, email, role) 
+			 VALUES ('tracker_admin', 'Admin', 'admin@protiviti.com', 'admin')`,
+		)
+		if err != nil {
+			log.Printf("[TrackerAuth] Failed to insert admin user: %v", err)
+			return fiber.NewError(fiber.StatusInternalServerError, "Database error initializing admin session")
+		}
+		id, _ := res.LastInsertId()
+		userID = int(id)
+	} else if err != nil {
+		log.Printf("[TrackerAuth] Failed to query admin user: %v", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Database error")
 	}
 
-	token, err := createJWT(9999, "tracker_admin", "Admin", "admin")
+	token, err := createJWT(userID, "tracker_admin", "Admin", "admin")
 	if err != nil {
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to generate token")
 	}
@@ -129,7 +138,7 @@ func trackerAdminLogin(c *fiber.Ctx) error {
 		"access_token": token,
 		"token_type":   "bearer",
 		"user": fiber.Map{
-			"user_id":      9999,
+			"user_id":      userID,
 			"display_name": "Admin",
 			"role":         "admin",
 		},
