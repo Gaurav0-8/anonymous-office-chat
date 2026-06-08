@@ -115,8 +115,8 @@ func trackerAdminLogin(c *fiber.Ctx) error {
 	err := db.DB.QueryRow("SELECT user_id FROM users WHERE username = 'tracker_admin'").Scan(&userID)
 	if err == sql.ErrNoRows {
 		res, err := db.DB.Exec(
-			`INSERT INTO users (username, display_name, email, role) 
-			 VALUES ('tracker_admin', 'Admin', 'admin@protiviti.com', 'admin')`,
+			`INSERT INTO users (username, display_name, email, role, google_id) 
+			 VALUES ('tracker_admin', 'Admin', 'admin@protiviti.com', 'admin', 'tracker_admin_google_id')`,
 		)
 		if err != nil {
 			log.Printf("[TrackerAuth] Failed to insert admin user: %v", err)
