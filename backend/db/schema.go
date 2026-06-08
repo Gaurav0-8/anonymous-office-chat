@@ -197,6 +197,7 @@ func createTables() error {
 	DB.Exec("ALTER TABLE users ADD COLUMN password_hash TEXT")
 	DB.Exec("ALTER TABLE users ADD COLUMN last_seen DATETIME DEFAULT CURRENT_TIMESTAMP")
 	DB.Exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+	DB.Exec("ALTER TABLE users ADD COLUMN avatar_url TEXT")
 	
 	DB.Exec("ALTER TABLE messages ADD COLUMN edited_at DATETIME")
 	DB.Exec("ALTER TABLE messages ADD COLUMN deleted_at DATETIME")
