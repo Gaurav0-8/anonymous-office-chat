@@ -391,6 +391,7 @@ func getChangeRequests(c *fiber.Ctx) error {
 		 ORDER BY r.status = 'pending' DESC, r.requested_at DESC`,
 	)
 	if err != nil {
+		log.Printf("[Tracker] getChangeRequests query failed: %v", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Database query failed")
 	}
 	defer rows.Close()

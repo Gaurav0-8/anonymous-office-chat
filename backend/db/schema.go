@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"log"
 	"os"
 
 	_ "modernc.org/sqlite"
@@ -46,8 +47,27 @@ func InitDB() error {
 	// Ensure system chat exists
 	_, _ = DB.Exec("INSERT OR IGNORE INTO chats (chat_id, chat_type) VALUES (1, 'group')")
 	
+	logDatabaseSchema()
+
 	return nil
 }
+
+func logDatabaseSchema() {
+	rows, err := DB.Query("SELECT name, sql FROM sqlite_master WHERE type='table'")
+	if err != nil {
+		log.Printf("[DB] Failed to query sqlite_master: %v", err)
+		return
+	}
+	defer rows.Close()
+	log.Println("[DB] Current database tables and schemas:")
+	for rows.Next() {
+		var name, sqlStr string
+		if err := rows.Scan(&name, &sqlStr); err == nil {
+			log.Printf("Table: %s | Schema: %s", name, sqlStr)
+		}
+	}
+}
+
 
 func CloseDB() {
 	if DB != nil {
